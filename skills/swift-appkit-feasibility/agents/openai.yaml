@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swift AppKit Feasibility"
+  short_description: "Guide Swift/AppKit feasibility prototypes for DeskBlocks."
+  default_prompt: "Use Swift/AppKit feasibility discipline for DeskBlocks: verify AppKit APIs from official/local sources, keep the prototype minimal, separate grid logic from window behavior, and capture evidence before recommending a stack decision."
