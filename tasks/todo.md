@@ -38,7 +38,7 @@
 ## MVP Planning
 
 - [x] Create MVP implementation plan.
-- [ ] Decide MVP block creation UX.
+- [x] Decide MVP block creation UX.
 - [ ] Model multiple blocks in core.
 - [ ] Persist multiple blocks.
 - [ ] Render multiple blocks as AppKit windows.

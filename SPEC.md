@@ -82,6 +82,21 @@ When the user resizes a block:
 - The block must not end in a half-tile state.
 - Minimum size must be at least one usable tile plus title and frame chrome.
 
+## UX Direction
+
+DeskBlocks should feel native to macOS and follow an Apple-like visual style: quiet controls, system typography, restrained borders, and no decorative UI that competes with the desktop.
+
+MVP UX decisions:
+
+- The app starts as a normal Dock app, not a menu bar-only app.
+- Block creation happens through the app menu, starting with `File > New Block`.
+- Blocks are visually transparent wherever there is no frame, text, icon, button, resize affordance, or explicit hover/selection UI.
+- Transparency is optical only for the MVP. Empty transparent block areas do not need to pass clicks through to Finder.
+- Blocks should be moved by dragging the title/frame area, not by relying on the empty transparent interior.
+- Resize should use Apple-like window edge/corner behavior or subtle visible handles.
+- Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
+- Block removal should use a context menu or a subtle hover/selection control.
+
 ## MVP Scope
 
 The MVP should prove the desktop-block interaction model before broad customization.
@@ -89,6 +104,7 @@ The MVP should prove the desktop-block interaction model before broad customizat
 Required MVP capabilities:
 
 - Create a block with a title.
+- Create a block through `File > New Block`.
 - Show the block on the macOS desktop as a visual overlay.
 - Drag a block to reposition it.
 - Resize a block with pointer interaction.
@@ -266,7 +282,6 @@ MVP is successful when:
 
 - What exact tile dimensions best match Finder folder icon and label readability on the user's display?
 - Should the current `desktopIconWindow + 1` level remain the final MVP window level after broader daily-use testing?
-- Should block creation happen through a menu bar app, a floating control, or direct desktop interaction?
 - What persistence format should be used after the stack is selected?
 - Should folder references be stored as paths, aliases, bookmarks, or another macOS-native reference type?
 - Should magnetic tile placement be tested before or after the basic block MVP is proven?

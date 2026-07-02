@@ -11,6 +11,8 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - Keep `DeskBlocksCore` responsible for block state, tile geometry, snapping, validation, and persistence-safe data structures.
 - Keep AppKit responsible for windows, pointer interaction, rendering, menus/controls, and macOS desktop behavior.
 - Keep the current JSON persistence approach unless a later task explicitly justifies a persistence-format ADR.
+- Use Apple-like native macOS UX: normal Dock app, `File > New Block` for creation, subtle native controls, and optical transparency outside frame/text/buttons/handles.
+- Treat transparent empty block areas as visually transparent only for the MVP; click-through to Finder is not required.
 
 ## Phase 1: MVP Foundation
 
@@ -19,13 +21,19 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Choose the minimal user-facing way to create a new block. The current open options are app menu, menu bar item, floating control, or direct desktop interaction.
 
 **Acceptance criteria:**
-- [ ] One MVP creation path is selected.
-- [ ] Rejected options are briefly documented with rationale.
-- [ ] The selected path does not require unapproved OS permissions or external services.
+- [x] One MVP creation path is selected: `File > New Block` in a normal Dock app.
+- [x] Rejected options are briefly documented with rationale.
+- [x] The selected path does not require unapproved OS permissions or external services.
+
+**Decision notes:**
+- Menu bar-only app is deferred because the MVP should avoid lifecycle and status-item complexity.
+- Floating control is deferred because it adds permanent UI chrome before the block interaction model is proven.
+- Direct desktop interaction is deferred because it would require more custom hit-testing and risks conflicting with Finder behavior.
+- Optical transparency is required outside frame/text/buttons/handles, but transparent empty areas do not need Finder click-through in the MVP.
 
 **Verification:**
-- [ ] Update `SPEC.md` if the chosen creation UX changes product behavior.
-- [ ] Record an ADR only if the choice creates durable architecture constraints.
+- [x] Update `SPEC.md` if the chosen creation UX changes product behavior.
+- [x] Record an ADR only if the choice creates durable architecture constraints.
 
 **Dependencies:** None
 
@@ -280,7 +288,6 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 
 ## Open Questions
 
-- Which MVP block creation path should be selected?
 - Should the app stay as a normal dock app during MVP, or later become a menu bar app?
 - What exact MVP tile dimensions should be accepted after visual calibration?
 - Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
