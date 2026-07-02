@@ -130,7 +130,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Implement the selected MVP block creation path from Task 1 and create a valid default snapped block.
 
 **Acceptance criteria:**
-- [ ] User can create a new block through the selected dialog path.
+- [x] User can create a new block through the selected dialog path.
 - [x] New blocks get unique IDs and user-provided titles.
 - [x] New blocks derive columns and rows from total tile count.
 - [x] Non-square tile counts preserve requested visible slots instead of filling all frame capacity.
@@ -141,7 +141,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - [x] Run `swift build`.
 - [x] Automated creation smoke check with `swift run DeskBlocksPrototype --new-block-title "Ten Tiles" --new-block-smoke 10`.
 - [x] Regression check confirms `10` requested tiles use `4x3` frame capacity while rendering only `10` slots.
-- [ ] Manual `File > New Block...` dialog, quit, relaunch check.
+- [x] Manual `File > New Block...` dialog, quit, relaunch check.
 
 **Implementation notes:**
 - `File > New Block...` is wired through the AppKit main menu.
