@@ -32,5 +32,5 @@
 - [x] Check full-screen app behavior.
 - [x] Note required permissions or OS settings for the current overlay candidate.
 - [x] Record current limitations and recommendation.
-- [ ] Write follow-up ADR for the stack decision.
-- [ ] Update `SPEC.md` and `AGENTS.md` with real commands if a stack is accepted.
+- [x] Write follow-up ADR for the stack decision.
+- [x] Update `SPEC.md` and `AGENTS.md` with real commands if a stack is accepted.

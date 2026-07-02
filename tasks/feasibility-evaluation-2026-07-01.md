@@ -77,4 +77,4 @@ Next human check should specifically test:
 
 - no additional manual check is required before the stack ADR
 
-Do not accept Swift/AppKit as the production stack until the Mission Control limitation is explicitly carried into the stack ADR.
+Swift/AppKit is acceptable for the MVP stack only if the Mission Control limitation is explicitly carried into the stack ADR.

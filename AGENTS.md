@@ -6,8 +6,8 @@ DeskBlocks is a private macOS desktop app for visual desktop organization. It cr
 
 Current state:
 
-- No production application stack has been chosen yet.
-- The first feasibility prototype uses Swift/AppKit via Swift Package Manager.
+- Swift/AppKit is accepted as the MVP application stack by `docs/decisions/ADR-002-accept-swift-appkit-for-mvp.md`.
+- The current implementation uses Swift/AppKit via Swift Package Manager.
 - Build, run, and core geometry check commands exist for the prototype; no lint or packaging commands exist yet.
 - Local skills in `skills/` are reference workflows, not installed Codex runtime skills unless this project later moves or configures them for discovery.
 
@@ -22,13 +22,13 @@ Use this lifecycle for non-trivial work:
 5. Test
 6. Review
 
-Do not skip straight to app implementation. The first risk to prove is macOS desktop behavior: transparent desktop-level windows, window level, drag and resize behavior, whole-tile snapping, persistence, and how the UI behaves around Finder icons.
+Do not skip required gates. The first macOS desktop behavior risk has enough feasibility evidence to proceed with Swift/AppKit MVP work, but new desktop-level behavior still needs focused verification.
 
 ## Required Gates
 
 - Before editing this file, read `docs/agents-md-best-practices.md` and keep the change consistent with current Codex `AGENTS.md` guidance.
 - Create or update `SPEC.md` before implementation work.
-- Record major technical decisions with ADRs before committing to them, especially Swift/AppKit vs. Electron vs. Tauri.
+- Record major technical decisions with ADRs before committing to them, especially stack changes, persistence format changes, packaging/signing decisions, or OS-level integrations.
 - Use `references/definition-of-done.md` as the completion bar for every increment.
 - When a real stack exists, update this file with the actual dev, build, lint, and test commands.
 
@@ -51,7 +51,7 @@ Specialist persona references live in `agents/`; use them only as role guidance 
 
 ## Commands and Verification
 
-Current prototype commands:
+Current Swift/AppKit commands:
 
 - Build: `swift build`
 - Run: `swift run DeskBlocksPrototype`
@@ -65,7 +65,7 @@ For documentation and planning changes, verify with targeted file searches and a
 
 Ask before:
 
-- Choosing the app stack or changing architecture.
+- Changing the app stack or architecture.
 - Adding dependencies.
 - Introducing external services.
 - Changing persistence format.

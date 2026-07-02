@@ -124,7 +124,7 @@ The first phase proves whether DeskBlocks can work as a macOS desktop-level visu
 
 **Verification:**
 
-- [ ] Manual checklist passes for drag, resize, snapping, quit, and relaunch.
+- [x] Manual checklist passes for drag, resize, snapping, quit, and relaunch.
 - [x] Automated persistence check exists through `swift run DeskBlocksCoreChecks`; launch smoke checks wrote and reloaded `~/Library/Application Support/DeskBlocks/prototype-state.json`.
 
 **Dependencies:** Task 4
@@ -139,13 +139,13 @@ The first phase proves whether DeskBlocks can work as a macOS desktop-level visu
 
 **Acceptance criteria:**
 
-- [ ] Manual checklist is completed with notes.
-- [ ] Limitations are documented.
-- [ ] Recommendation is clear: continue with stack, test another stack, or stop.
+- [x] Manual checklist is completed with notes.
+- [x] Limitations are documented.
+- [x] Recommendation is clear: continue with Swift/AppKit.
 
 **Verification:**
 
-- [ ] Human review of the evidence and recommendation.
+- [x] Human review of the evidence and recommendation.
 
 **Dependencies:** Task 5
 
@@ -158,10 +158,10 @@ The first phase proves whether DeskBlocks can work as a macOS desktop-level visu
 
 ## Checkpoint: Stack Decision
 
-- [ ] Feasibility criteria have pass/fail evidence.
-- [ ] A follow-up ADR records the app stack decision.
-- [ ] `SPEC.md` and `AGENTS.md` list real commands if a stack is accepted.
-- [ ] MVP planning does not begin until this checkpoint is complete.
+- [x] Feasibility criteria have pass/fail evidence.
+- [x] A follow-up ADR records the app stack decision.
+- [x] `SPEC.md` and `AGENTS.md` list real commands if a stack is accepted.
+- [x] MVP planning does not begin until this checkpoint is complete.
 
 ## Risks and Mitigations
 

@@ -19,8 +19,8 @@ Primary success:
 
 ## Current Project State
 
-- No production app stack is selected yet.
-- The first feasibility prototype uses Swift/AppKit via Swift Package Manager.
+- Swift/AppKit is accepted as the MVP app stack by `docs/decisions/ADR-002-accept-swift-appkit-for-mvp.md`.
+- The current implementation uses Swift/AppKit via Swift Package Manager.
 - Prototype source exists under `Sources/DeskBlocksPrototype/` and `Sources/DeskBlocksCore/`.
 - Build, run, and core geometry check commands exist for the prototype.
 - No lint or packaging commands exist yet.
@@ -120,25 +120,21 @@ DeskBlocks MVP will not:
 
 ## Technical Strategy
 
-The first technical decision is the macOS app stack. It must not be selected by preference alone.
+The macOS app stack is Swift/AppKit for the MVP.
 
-Candidate stacks:
+This was selected after feasibility evidence, not by preference alone. ADR-002 records the decision and rejects Electron and Tauri for the MVP unless Swift/AppKit hits a concrete blocker.
 
-- Swift/AppKit.
-- Electron.
-- Tauri.
-
-The first feasibility work must compare whether the selected candidate can support:
+The accepted stack must continue to support:
 
 - Transparent or visually lightweight desktop-level windows.
 - Reliable window level behavior around the desktop and Finder.
 - Pointer drag and resize.
 - Whole-tile size snapping.
 - Position and size persistence.
-- Future folder-reference persistence and drag-and-drop feasibility, if magnetic tile placement remains in scope before the final stack decision.
+- Future folder-reference persistence and drag-and-drop feasibility before implementing magnetic tile placement.
 - Acceptable startup and idle resource usage for a private utility app.
 
-Major stack decisions must be recorded in `docs/decisions/` as ADRs before full MVP implementation.
+Major future stack or architecture changes must be recorded in `docs/decisions/` as ADRs before implementation.
 
 ## Commands
 
@@ -160,7 +156,7 @@ Do not claim any of the following exist until matching project files have been a
 - `swift test`
 - `cargo test`
 
-When the app stack is accepted for MVP work, update this section and `AGENTS.md` with exact commands for development, build, lint, test, and packaging.
+When lint or packaging commands exist, update this section and `AGENTS.md` with the exact commands.
 
 ## Project Structure
 
@@ -182,13 +178,9 @@ Expected future additions:
 - `docs/decisions/` - ADRs for durable technical choices.
 - `tasks/plan.md` - implementation plan.
 - `tasks/todo.md` - task checklist.
-- Source directories based on the selected app stack.
+- Source directories as needed for the Swift/AppKit MVP.
 
 ## Code Style
-
-No project language or framework exists yet.
-
-When a stack is selected:
 
 - Prefer simple, explicit code over clever abstractions.
 - Keep desktop behavior, grid math, folder-reference state, persistence, and UI rendering as separable concerns.
@@ -201,7 +193,7 @@ When a stack is selected:
 
 Before full MVP implementation, the feasibility prototype must include manual verification evidence for macOS desktop behavior.
 
-When a stack exists, test at these levels:
+Test at these levels:
 
 - Unit tests for tile grid math, snapped resize dimensions, minimum sizes, and persistence serialization.
 - Integration tests where practical for block state loading and saving.
@@ -236,7 +228,6 @@ Always:
 
 Ask first:
 
-- Choosing the app stack.
 - Adding dependencies.
 - Adding OS-level permissions, login items, automation, or accessibility integrations.
 - Changing persistence format.
@@ -274,18 +265,17 @@ MVP is successful when:
 ## Open Questions
 
 - What exact tile dimensions best match Finder folder icon and label readability on the user's display?
-- Should blocks live behind Finder icons, above Finder icons, or as a normal utility window layer? This must be proven on macOS.
+- Should the current `desktopIconWindow + 1` level remain the final MVP window level after broader daily-use testing?
 - Should block creation happen through a menu bar app, a floating control, or direct desktop interaction?
 - What persistence format should be used after the stack is selected?
 - Should folder references be stored as paths, aliases, bookmarks, or another macOS-native reference type?
-- Should magnetic tile placement be tested before the final stack ADR, or deferred until after the basic block MVP is proven?
-- Should Swift/AppKit continue after feasibility evidence, or should Electron/Tauri be tested next?
+- Should magnetic tile placement be tested before or after the basic block MVP is proven?
 
 ## Confidence
 
-Confidence score: 84%.
+Confidence score: 88%.
 
 Reason:
 
-- Product intent, MVP direction, non-goals, and first technical risk are clear from the existing project conversation and `AGENTS.md`.
-- Exact tile dimensions, stack choice, and macOS window-layer behavior are intentionally unresolved because they require measurement or feasibility testing rather than guessing.
+- Product intent, MVP direction, non-goals, accepted MVP stack, and first technical risk are clear from the existing project conversation, feasibility evidence, `AGENTS.md`, and ADR-002.
+- Exact tile dimensions, final daily-use window behavior, block-creation UX, persistence format, and folder-reference representation remain unresolved because they require measurement or focused implementation evidence rather than guessing.
