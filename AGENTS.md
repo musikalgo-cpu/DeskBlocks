@@ -61,6 +61,8 @@ No lint or packaging command exists yet. No `swift test` target exists in the cu
 
 For documentation and planning changes, verify with targeted file searches and a final diff review. For Swift/AppKit prototype changes, run `swift build` and `swift run DeskBlocksCoreChecks` when grid/snapping logic is affected; run `swift run DeskBlocksPrototype` only when a GUI launch check is needed.
 
+For uncritical completed documentation and planning changes, commit after verification without a separate prompt. Ask before committing behavior changes, dependency changes, architecture changes, persistence-format changes, OS integrations, or any risky/destructive operation unless the user explicitly requested the commit.
+
 ## Boundaries
 
 Ask before:

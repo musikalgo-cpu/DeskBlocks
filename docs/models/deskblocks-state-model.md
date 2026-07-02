@@ -161,13 +161,17 @@ Current code already covers:
 - State normalization through `DeskBlockState.snapped`.
 - JSON round-trip checks through `DeskBlocksCoreChecks`.
 
-Current code still needs manual evidence for:
+Current feasibility evidence covers:
 
-- Whether the overlay candidate is usable around Finder icons.
-- Mission Control behavior.
+- Basic desktop and Finder-icon interaction.
+- Mission Control behavior, with the known limitation that DeskBlocks stays on the desktop instead of entering Mission Control as a normal managed window.
 - Spaces behavior.
 - Full-screen app behavior.
-- Multi-monitor behavior.
+
+Current code still needs future evidence for:
+
+- Multi-monitor behavior when a second display is available.
+- Daily-use validation of the current `desktopIconWindow + 1` window level.
 
 ## When To Update This Model
 
@@ -180,4 +184,3 @@ Update this document before implementing:
 - magnetic tile placement
 - any persistence format change
 - any new AppKit behavior that changes block lifecycle or visibility
-

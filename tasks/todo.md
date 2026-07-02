@@ -34,3 +34,17 @@
 - [x] Record current limitations and recommendation.
 - [x] Write follow-up ADR for the stack decision.
 - [x] Update `SPEC.md` and `AGENTS.md` with real commands if a stack is accepted.
+
+## MVP Planning
+
+- [x] Create MVP implementation plan.
+- [ ] Decide MVP block creation UX.
+- [ ] Model multiple blocks in core.
+- [ ] Persist multiple blocks.
+- [ ] Render multiple blocks as AppKit windows.
+- [ ] Add minimal block creation.
+- [ ] Add title editing.
+- [ ] Add block removal.
+- [ ] Calibrate tile visuals for Finder readability.
+- [ ] Run daily-use desktop validation.
+- [ ] Complete MVP review gate.

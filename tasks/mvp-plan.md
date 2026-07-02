@@ -1,0 +1,286 @@
+# Implementation Plan: DeskBlocks MVP
+
+## Overview
+
+Build the first real Swift/AppKit MVP from the proven feasibility prototype. The MVP should support multiple visual desktop blocks with fixed-size tile grids, basic block creation/removal, title editing, drag/resize with whole-tile snapping, and persistence across restart. Folder-reference tiles and magnetic placement remain deferred until the basic block model is stable.
+
+## Architecture Decisions
+
+- Swift/AppKit is the MVP app stack, accepted in `docs/decisions/ADR-002-accept-swift-appkit-for-mvp.md`.
+- Keep the deterministic-core/UI-shell split from `docs/models/deskblocks-state-model.md`.
+- Keep `DeskBlocksCore` responsible for block state, tile geometry, snapping, validation, and persistence-safe data structures.
+- Keep AppKit responsible for windows, pointer interaction, rendering, menus/controls, and macOS desktop behavior.
+- Keep the current JSON persistence approach unless a later task explicitly justifies a persistence-format ADR.
+
+## Phase 1: MVP Foundation
+
+### Task 1: Decide MVP Block Creation UX
+
+**Description:** Choose the minimal user-facing way to create a new block. The current open options are app menu, menu bar item, floating control, or direct desktop interaction.
+
+**Acceptance criteria:**
+- [ ] One MVP creation path is selected.
+- [ ] Rejected options are briefly documented with rationale.
+- [ ] The selected path does not require unapproved OS permissions or external services.
+
+**Verification:**
+- [ ] Update `SPEC.md` if the chosen creation UX changes product behavior.
+- [ ] Record an ADR only if the choice creates durable architecture constraints.
+
+**Dependencies:** None
+
+**Files likely touched:**
+- `SPEC.md`
+- `docs/decisions/`
+- `tasks/mvp-plan.md`
+
+**Estimated scope:** S
+
+### Task 2: Model Multiple Blocks In Core
+
+**Description:** Extend the core state from one block toward a collection of blocks with stable identifiers, valid frames, titles, snapped sizes, and future tile references.
+
+**Acceptance criteria:**
+- [ ] Core state can represent multiple blocks with stable IDs.
+- [ ] Every block remains snapped through `TileGridMetrics`.
+- [ ] Invalid loaded block sizes are normalized before rendering.
+
+**Verification:**
+- [ ] Add executable checks to `DeskBlocksCoreChecks`.
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+
+**Dependencies:** None
+
+**Files likely touched:**
+- `Sources/DeskBlocksCore/`
+- `Sources/DeskBlocksCoreChecks/`
+- `docs/models/deskblocks-state-model.md`
+
+**Estimated scope:** M
+
+### Task 3: Persist Multiple Blocks
+
+**Description:** Save and restore the multiple-block state using the current JSON persistence approach without changing the persistence format family.
+
+**Acceptance criteria:**
+- [ ] Multiple blocks survive quit and relaunch.
+- [ ] Block IDs, titles, positions, sizes, and tile-reference arrays round-trip.
+- [ ] Decode failure still falls back safely without file-moving behavior.
+
+**Verification:**
+- [ ] Add persistence round-trip checks to `DeskBlocksCoreChecks`.
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual relaunch smoke check with `swift run DeskBlocksPrototype`.
+
+**Dependencies:** Task 2
+
+**Files likely touched:**
+- `Sources/DeskBlocksCore/`
+- `Sources/DeskBlocksCoreChecks/`
+- `Sources/DeskBlocksPrototype/`
+
+**Estimated scope:** M
+
+## Checkpoint: Core MVP State
+
+- [ ] Multiple-block core checks pass.
+- [ ] Persistence checks pass.
+- [ ] No Finder file operations were introduced.
+- [ ] `docs/models/deskblocks-state-model.md` matches the implemented lifecycle.
+
+## Phase 2: Desktop Block Interactions
+
+### Task 4: Render Multiple Blocks As AppKit Windows
+
+**Description:** Replace the one hard-coded block window with rendering from persisted block state. Each block should be draggable and resizable independently.
+
+**Acceptance criteria:**
+- [ ] All persisted blocks render after launch.
+- [ ] Moving one block does not move or resize another block.
+- [ ] Resizing one block snaps through core logic and persists.
+
+**Verification:**
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual launch, move, resize, quit, relaunch check.
+
+**Dependencies:** Task 3
+
+**Files likely touched:**
+- `Sources/DeskBlocksPrototype/`
+- `Sources/DeskBlocksCore/`
+
+**Estimated scope:** M
+
+### Task 5: Add Minimal Block Creation
+
+**Description:** Implement the selected MVP block creation path from Task 1 and create a valid default snapped block.
+
+**Acceptance criteria:**
+- [ ] User can create a new block through the selected path.
+- [ ] New blocks get unique IDs and default titles.
+- [ ] New blocks persist after restart.
+
+**Verification:**
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual create, quit, relaunch check.
+
+**Dependencies:** Task 1, Task 4
+
+**Files likely touched:**
+- `Sources/DeskBlocksPrototype/`
+- `Sources/DeskBlocksCore/`
+
+**Estimated scope:** M
+
+### Task 6: Add Title Editing
+
+**Description:** Provide a minimal way to rename a block while preserving snapped size, position, and tile references.
+
+**Acceptance criteria:**
+- [ ] User can edit a block title.
+- [ ] Empty or invalid title input is handled predictably.
+- [ ] Edited titles persist after restart.
+
+**Verification:**
+- [ ] Add core checks for title validation if validation is introduced.
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual rename, quit, relaunch check.
+
+**Dependencies:** Task 4
+
+**Files likely touched:**
+- `Sources/DeskBlocksPrototype/`
+- `Sources/DeskBlocksCore/`
+
+**Estimated scope:** M
+
+### Task 7: Add Block Removal
+
+**Description:** Provide a minimal way to remove a block from DeskBlocks state without deleting, moving, or changing any Finder files.
+
+**Acceptance criteria:**
+- [ ] User can remove a block.
+- [ ] Removed blocks do not return after restart.
+- [ ] Removing a block never deletes or moves real folders.
+
+**Verification:**
+- [ ] Add core checks for remove behavior.
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual remove, quit, relaunch check.
+
+**Dependencies:** Task 4
+
+**Files likely touched:**
+- `Sources/DeskBlocksPrototype/`
+- `Sources/DeskBlocksCore/`
+- `Sources/DeskBlocksCoreChecks/`
+
+**Estimated scope:** M
+
+## Checkpoint: Usable MVP Blocks
+
+- [ ] User can create, rename, move, resize, remove, quit, and relaunch.
+- [ ] All block state restores correctly.
+- [ ] Manual desktop behavior remains acceptable with multiple blocks.
+- [ ] `references/definition-of-done.md` is satisfied for implemented slices.
+
+## Phase 3: Visual Calibration And Review
+
+### Task 8: Calibrate Tile Visuals For Finder Readability
+
+**Description:** Measure and adjust tile dimensions and block chrome so folder icon and label readability are plausible on the user's display.
+
+**Acceptance criteria:**
+- [ ] Tile dimensions are documented as MVP values.
+- [ ] Fixed tile size remains unchanged during resize.
+- [ ] Labels and icon placeholders remain readable enough for the MVP direction.
+
+**Verification:**
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Manual visual check on the user's desktop.
+
+**Dependencies:** Task 4
+
+**Files likely touched:**
+- `Sources/DeskBlocksCore/`
+- `Sources/DeskBlocksPrototype/`
+- `SPEC.md`
+
+**Estimated scope:** S
+
+### Task 9: Daily-Use Desktop Validation
+
+**Description:** Re-test the accepted AppKit desktop behavior with multiple blocks and typical desktop use before considering the MVP interaction model complete.
+
+**Acceptance criteria:**
+- [ ] Multiple blocks remain usable around Finder icons.
+- [ ] Mission Control limitation remains acceptable.
+- [ ] Spaces and full-screen behavior remain acceptable.
+
+**Verification:**
+- [ ] Manual desktop test notes are captured in `tasks/`.
+- [ ] Any new limitation is documented before continuing.
+
+**Dependencies:** Tasks 5-8
+
+**Files likely touched:**
+- `tasks/`
+- `SPEC.md` if product behavior changes
+
+**Estimated scope:** S
+
+### Task 10: MVP Review Gate
+
+**Description:** Review the MVP against `SPEC.md`, ADR-002, the state model, and the Definition of Done before expanding into folder-reference or magnetic placement work.
+
+**Acceptance criteria:**
+- [ ] MVP scope items are checked against `SPEC.md`.
+- [ ] Known limitations are documented.
+- [ ] Next post-MVP feature decision is explicit: folder references, magnetic placement, packaging, or visual polish.
+
+**Verification:**
+- [ ] Run `swift run DeskBlocksCoreChecks`.
+- [ ] Run `swift build`.
+- [ ] Perform code/documentation review using `skills/code-review-and-quality/SKILL.md`.
+
+**Dependencies:** Tasks 1-9
+
+**Files likely touched:**
+- `tasks/`
+- `SPEC.md`
+- `docs/decisions/`
+
+**Estimated scope:** S
+
+## Risks And Mitigations
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Multiple AppKit windows make desktop behavior less stable | High | Re-test desktop/Finder/Spaces/full-screen behavior after Task 4 |
+| Persistence grows implicit and hard to migrate | Medium | Keep state explicit in `DeskBlocksCore`; write an ADR before changing persistence format |
+| Block creation UX adds too much UI too early | Medium | Choose one minimal creation path in Task 1 |
+| Title editing or removal accidentally couples UI state to Finder files | High | Keep file operations out of MVP; tile references remain app-owned state only |
+| Tile dimensions are guessed instead of measured | Medium | Calibrate in Task 8 before declaring the MVP interaction model complete |
+
+## Deferred Beyond MVP
+
+- Folder reference tiles.
+- Magnetic tile placement.
+- Real Finder icon manipulation.
+- Login items, automation, accessibility permissions, and OS-level integrations.
+- Packaging, signing, notarization, and distribution.
+- Multi-monitor validation until a second display is available.
+
+## Open Questions
+
+- Which MVP block creation path should be selected?
+- Should the app stay as a normal dock app during MVP, or later become a menu bar app?
+- What exact MVP tile dimensions should be accepted after visual calibration?
+- Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
