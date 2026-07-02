@@ -191,15 +191,23 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Provide a minimal way to remove a block from DeskBlocks state without deleting, moving, or changing any Finder files.
 
 **Acceptance criteria:**
-- [ ] User can remove a block.
-- [ ] Removed blocks do not return after restart.
-- [ ] Removing a block never deletes or moves real folders.
+- [x] User can remove a block.
+- [x] Removed blocks do not return after restart.
+- [x] Removing a block never deletes or moves real folders.
 
 **Verification:**
-- [ ] Add core checks for remove behavior.
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
+- [x] Add core checks for remove behavior.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Automated remove smoke check with `swift run DeskBlocksPrototype --remove-smoke`.
+- [x] Automated last-block removal check confirms intentionally empty persisted state stays empty after launch.
 - [ ] Manual remove, quit, relaunch check.
+
+**Implementation notes:**
+- Removal is available through `Edit > Remove Block...` and the block context menu.
+- Removal requires a native confirmation dialog and states that Finder folders and files are not changed.
+- Core removal keeps non-removed blocks unchanged, ignores unknown block IDs, and allows the last block to be removed from the current app state.
+- If the last block is removed, DeskBlocks keeps the intentionally empty persisted state across restart. A missing state file still creates the first default block.
 
 **Dependencies:** Task 4
 

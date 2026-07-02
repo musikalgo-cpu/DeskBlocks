@@ -110,6 +110,7 @@ final class DeskBlockView: NSView {
         }
     }
     var requestRename: ((DeskBlockID) -> Void)?
+    var requestRemove: ((DeskBlockID) -> Void)?
 
     private var titleRect: NSRect {
         NSRect(
@@ -149,9 +150,16 @@ final class DeskBlockView: NSView {
             action: #selector(renameFromContextMenu(_:)),
             keyEquivalent: ""
         )
+        let removeItem = NSMenuItem(
+            title: "Remove Block...",
+            action: #selector(removeFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
 
         renameItem.target = self
+        removeItem.target = self
         menu.addItem(renameItem)
+        menu.addItem(removeItem)
 
         return menu
     }
@@ -195,6 +203,10 @@ final class DeskBlockView: NSView {
 
     @objc private func renameFromContextMenu(_ sender: Any?) {
         requestRename?(state.id)
+    }
+
+    @objc private func removeFromContextMenu(_ sender: Any?) {
+        requestRemove?(state.id)
     }
 
     private func drawTileGrid() {
@@ -277,6 +289,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if CommandLine.arguments.contains("--remove-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.remove(blockID: blockID)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--close-smoke") {
             DispatchQueue.main.async { [weak self] in
                 self?.windowsByBlockID.values.first?.close()
@@ -346,7 +371,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        !state.blocks.isEmpty
     }
 
     @objc private func createNewBlock(_ sender: Any?) {
@@ -371,6 +396,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             action: #selector(renameSelectedBlock(_:)),
             keyEquivalent: ""
         )
+        let removeBlockItem = NSMenuItem(
+            title: "Remove Block...",
+            action: #selector(removeSelectedBlock(_:)),
+            keyEquivalent: ""
+        )
 
         appMenu.addItem(
             NSMenuItem(
@@ -386,7 +416,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         fileMenuItem.submenu = fileMenu
 
         renameBlockItem.target = self
+        removeBlockItem.target = self
         editMenu.addItem(renameBlockItem)
+        editMenu.addItem(removeBlockItem)
         editMenuItem.submenu = editMenu
 
         mainMenu.addItem(appMenuItem)
@@ -396,10 +428,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func loadInitialState() -> DeskBlocksState {
-        let loadedState = store.load() ?? DeskBlocksState.prototypeDefault()
-        let nonEmptyState = loadedState.blocks.isEmpty ? DeskBlocksState.prototypeDefault() : loadedState
+        guard let loadedState = store.load() else {
+            return DeskBlocksState.prototypeDefault().snapped(metrics: PrototypeGeometry.metrics)
+        }
 
-        return nonEmptyState.snapped(metrics: PrototypeGeometry.metrics)
+        return loadedState.snapped(metrics: PrototypeGeometry.metrics)
     }
 
     private func renderAllBlockWindows() {
@@ -420,6 +453,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let blockView = DeskBlockView(state: block)
         blockView.requestRename = { [weak self] blockID in
             self?.showRenameDialog(for: blockID)
+        }
+        blockView.requestRemove = { [weak self] blockID in
+            self?.showRemoveConfirmation(for: blockID)
         }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
@@ -534,6 +570,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showRenameDialog(for: blockID)
     }
 
+    @objc private func removeSelectedBlock(_ sender: Any?) {
+        guard
+            let keyWindow = NSApplication.shared.keyWindow,
+            let blockID = blockID(for: keyWindow)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        showRemoveConfirmation(for: blockID)
+    }
+
     private func showRenameDialog(for blockID: DeskBlockID) {
         guard
             let block = state.block(id: blockID),
@@ -578,6 +626,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockViewsByBlockID[blockID]?.state = renamedBlock
         windowsByBlockID[blockID]?.title = renamedBlock.title
         store.save(state)
+    }
+
+    private func showRemoveConfirmation(for blockID: DeskBlockID) {
+        guard
+            let block = state.block(id: blockID),
+            let window = windowsByBlockID[blockID]
+        else {
+            return
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Remove Block?"
+        alert.informativeText = "Remove \"\(block.title)\" from DeskBlocks. Finder folders and files will not be changed."
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn else {
+                return
+            }
+
+            self?.remove(blockID: blockID)
+        }
+    }
+
+    @discardableResult
+    private func remove(blockID: DeskBlockID) -> Bool {
+        guard
+            state.block(id: blockID) != nil,
+            let window = windowsByBlockID[blockID]
+        else {
+            return false
+        }
+
+        updateStateFromAllWindows(save: false)
+        state = state.removingBlock(id: blockID)
+        blockViewsByBlockID.removeValue(forKey: blockID)
+        windowsByBlockID.removeValue(forKey: blockID)
+        window.delegate = nil
+        window.close()
+        store.save(state)
+
+        return true
     }
 
     private func blockID(for window: NSWindow) -> DeskBlockID? {

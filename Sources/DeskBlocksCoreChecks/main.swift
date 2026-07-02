@@ -342,6 +342,46 @@ private func testDeskBlocksStateAppendsAndUpdatesBlocksByID() {
     check(updated.block(id: addedBlock.id) == updatedBlock, "expected matching block to update by ID")
 }
 
+private func testDeskBlocksStateRemovesBlocksByID() {
+    let firstBlock = DeskBlockState.prototypeDefault()
+    let secondBlock = DeskBlockState(
+        id: DeskBlockID("second"),
+        title: "Second",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 520, y: 240),
+            size: TileGridMetrics.prototype.contentSize(columns: 2, rows: 2)
+        ),
+        columns: 2,
+        rows: 2,
+        tileReferences: [
+            TileReference(id: "tile-second", displayName: "Second Folder", folderReference: "bookmark-placeholder")
+        ]
+    )
+    let state = DeskBlocksState(blocks: [firstBlock, secondBlock])
+
+    let removed = state.removingBlock(id: firstBlock.id)
+
+    check(removed.blocks.count == 1, "expected one block to remain after removal")
+    check(removed.blocks[0] == secondBlock, "expected non-removed block to remain unchanged")
+    check(removed.block(id: firstBlock.id) == nil, "expected removed block to be absent")
+}
+
+private func testDeskBlocksStateIgnoresRemovalOfUnknownBlockID() {
+    let state = DeskBlocksState(blocks: [DeskBlockState.prototypeDefault()])
+
+    let unchanged = state.removingBlock(id: DeskBlockID("missing"))
+
+    check(unchanged == state, "expected removing an unknown block ID to leave state unchanged")
+}
+
+private func testDeskBlocksStateCanRemoveTheLastBlock() {
+    let state = DeskBlocksState(blocks: [DeskBlockState.prototypeDefault()])
+
+    let empty = state.removingBlock(id: .prototype)
+
+    check(empty.blocks.isEmpty, "expected removing the last block to produce an empty state")
+}
+
 private func testDeskBlockStateRenamesWithTrimmedTitle() {
     let state = DeskBlockState.prototypeDefault()
 
@@ -380,6 +420,9 @@ testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
 testDeskBlocksStateSnapsEveryBlockAndPreservesIDs()
 testDeskBlocksStateRoundTripsThroughJSON()
 testDeskBlocksStateAppendsAndUpdatesBlocksByID()
+testDeskBlocksStateRemovesBlocksByID()
+testDeskBlocksStateIgnoresRemovalOfUnknownBlockID()
+testDeskBlocksStateCanRemoveTheLastBlock()
 testDeskBlockStateRenamesWithTrimmedTitle()
 testDeskBlockStateIgnoresEmptyRenamedTitle()
 

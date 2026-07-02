@@ -234,6 +234,18 @@ public struct DeskBlocksState: Codable, Equatable, Sendable {
 
         return DeskBlocksState(blocks: updatedBlocks)
     }
+
+    public func removingBlock(id blockID: DeskBlockID) -> DeskBlocksState {
+        let remainingBlocks = blocks.filter { block in
+            block.id != blockID
+        }
+
+        guard remainingBlocks.count != blocks.count else {
+            return self
+        }
+
+        return DeskBlocksState(blocks: remainingBlocks)
+    }
 }
 
 public struct SnappedBlockSize: Equatable, Sendable {
