@@ -112,6 +112,8 @@ final class DeskBlockView: NSView {
     }
     var requestRename: ((DeskBlockID) -> Void)?
     var requestRemove: ((DeskBlockID) -> Void)?
+    var requestAddTile: ((DeskBlockID) -> Void)?
+    var requestDeleteTile: ((DeskBlockID) -> Void)?
 
     private var titleRect: NSRect {
         NSRect(
@@ -151,6 +153,16 @@ final class DeskBlockView: NSView {
             action: #selector(renameFromContextMenu(_:)),
             keyEquivalent: ""
         )
+        let addTileItem = NSMenuItem(
+            title: "Add Tile",
+            action: #selector(addTileFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let deleteTileItem = NSMenuItem(
+            title: "Delete Tile",
+            action: #selector(deleteTileFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
         let removeItem = NSMenuItem(
             title: "Remove Block...",
             action: #selector(removeFromContextMenu(_:)),
@@ -158,8 +170,14 @@ final class DeskBlockView: NSView {
         )
 
         renameItem.target = self
+        addTileItem.target = self
+        deleteTileItem.target = self
         removeItem.target = self
         menu.addItem(renameItem)
+        menu.addItem(.separator())
+        menu.addItem(addTileItem)
+        menu.addItem(deleteTileItem)
+        menu.addItem(.separator())
         menu.addItem(removeItem)
 
         return menu
@@ -208,6 +226,14 @@ final class DeskBlockView: NSView {
 
     @objc private func removeFromContextMenu(_ sender: Any?) {
         requestRemove?(state.id)
+    }
+
+    @objc private func addTileFromContextMenu(_ sender: Any?) {
+        requestAddTile?(state.id)
+    }
+
+    @objc private func deleteTileFromContextMenu(_ sender: Any?) {
+        requestDeleteTile?(state.id)
     }
 
     private func drawTileGrid() {
@@ -351,6 +377,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if CommandLine.arguments.contains("--add-tile-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.addTile(to: blockID)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
+        if CommandLine.arguments.contains("--delete-tile-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.deleteTile(from: blockID)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--close-smoke") {
             DispatchQueue.main.async { [weak self] in
                 self?.windowsByBlockID.values.first?.close()
@@ -380,9 +432,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        guard
+            let blockID = blockID(for: sender),
+            let currentBlock = state.block(id: blockID)
+        else {
+            return frameSize
+        }
+
         let proposedFrame = NSRect(origin: sender.frame.origin, size: frameSize)
         let proposedContent = sender.contentRect(forFrameRect: proposedFrame)
-        let snapped = PrototypeGeometry.metrics.snappedSize(for: BlockSize(proposedContent.size))
+        let snapped = PrototypeGeometry.metrics.snappedSize(
+            for: BlockSize(proposedContent.size),
+            containingAtLeastTileCount: currentBlock.tileCount
+        )
         let snappedFrame = sender.frameRect(
             forContentRect: NSRect(origin: .zero, size: snapped.size.nsSize)
         )
@@ -445,6 +507,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             action: #selector(renameSelectedBlock(_:)),
             keyEquivalent: ""
         )
+        let addTileItem = NSMenuItem(
+            title: "Add Tile",
+            action: #selector(addTileToSelectedBlock(_:)),
+            keyEquivalent: ""
+        )
+        let deleteTileItem = NSMenuItem(
+            title: "Delete Tile",
+            action: #selector(deleteTileFromSelectedBlock(_:)),
+            keyEquivalent: ""
+        )
         let removeBlockItem = NSMenuItem(
             title: "Remove Block...",
             action: #selector(removeSelectedBlock(_:)),
@@ -465,8 +537,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         fileMenuItem.submenu = fileMenu
 
         renameBlockItem.target = self
+        addTileItem.target = self
+        deleteTileItem.target = self
         removeBlockItem.target = self
         editMenu.addItem(renameBlockItem)
+        editMenu.addItem(.separator())
+        editMenu.addItem(addTileItem)
+        editMenu.addItem(deleteTileItem)
+        editMenu.addItem(.separator())
         editMenu.addItem(removeBlockItem)
         editMenuItem.submenu = editMenu
 
@@ -497,14 +575,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        let minimumContentSize = PrototypeGeometry.metrics.contentSize(columns: 1, rows: 1)
-        let minimumFrameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
         let blockView = DeskBlockView(state: block)
         blockView.requestRename = { [weak self] blockID in
             self?.showRenameDialog(for: blockID)
         }
         blockView.requestRemove = { [weak self] blockID in
             self?.showRemoveConfirmation(for: blockID)
+        }
+        blockView.requestAddTile = { [weak self] blockID in
+            self?.addTile(to: blockID)
+        }
+        blockView.requestDeleteTile = { [weak self] blockID in
+            self?.deleteTile(from: blockID)
         }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
@@ -520,13 +602,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.canHide = false
         window.level = OverlayWindowConfiguration.level
         window.collectionBehavior = OverlayWindowConfiguration.collectionBehavior
-        window.minSize = minimumFrameSize
+        window.minSize = minimumFrameSize(for: block, in: window)
         window.delegate = self
         window.contentView = blockView
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.makeKeyAndOrderFront(nil)
 
         windowsByBlockID[block.id] = window
         blockViewsByBlockID[block.id] = blockView
+    }
+
+    private func minimumFrameSize(for block: DeskBlockState, in window: NSWindow) -> NSSize {
+        let minimumLayout = PrototypeGeometry.metrics.gridLayout(containingTileCount: block.tileCount)
+        let minimumContentSize = PrototypeGeometry.metrics.contentSize(
+            columns: minimumLayout.columns,
+            rows: minimumLayout.rows
+        )
+
+        return window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
     }
 
     private func showNewBlockDialog() {
@@ -631,6 +726,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showRemoveConfirmation(for: blockID)
     }
 
+    @objc private func addTileToSelectedBlock(_ sender: Any?) {
+        guard
+            let keyWindow = NSApplication.shared.keyWindow,
+            let blockID = blockID(for: keyWindow)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        addTile(to: blockID)
+    }
+
+    @objc private func deleteTileFromSelectedBlock(_ sender: Any?) {
+        guard
+            let keyWindow = NSApplication.shared.keyWindow,
+            let blockID = blockID(for: keyWindow)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        deleteTile(from: blockID)
+    }
+
     private func showRenameDialog(for blockID: DeskBlockID) {
         guard
             let block = state.block(id: blockID),
@@ -674,6 +793,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         state = state.updating(block: renamedBlock)
         blockViewsByBlockID[blockID]?.state = renamedBlock
         windowsByBlockID[blockID]?.title = renamedBlock.title
+        store.save(state)
+    }
+
+    private func addTile(to blockID: DeskBlockID) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        update(block: currentBlock.addingTile(metrics: PrototypeGeometry.metrics))
+    }
+
+    private func deleteTile(from blockID: DeskBlockID) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let updatedBlock = currentBlock.removingTile(metrics: PrototypeGeometry.metrics)
+
+        guard updatedBlock != currentBlock else {
+            NSSound.beep()
+            return
+        }
+
+        update(block: updatedBlock)
+    }
+
+    private func update(block updatedBlock: DeskBlockState) {
+        guard let window = windowsByBlockID[updatedBlock.id] else {
+            return
+        }
+
+        state = state.updating(block: updatedBlock)
+        blockViewsByBlockID[updatedBlock.id]?.state = updatedBlock
+        window.title = updatedBlock.title
+        window.minSize = minimumFrameSize(for: updatedBlock, in: window)
+
+        let contentRect = window.contentRect(forFrameRect: window.frame)
+        let minimumContentSize = PrototypeGeometry.metrics.snappedSize(
+            for: BlockSize(contentRect.size),
+            containingAtLeastTileCount: updatedBlock.tileCount
+        ).size
+
+        if BlockSize(contentRect.size) != minimumContentSize {
+            let nextFrame = window.frameRect(
+                forContentRect: NSRect(origin: contentRect.origin, size: minimumContentSize.nsSize)
+            )
+            window.setFrame(nextFrame, display: true)
+        }
+
         store.save(state)
     }
 
@@ -747,7 +915,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let contentRect = window.contentRect(forFrameRect: window.frame)
         let origin = BlockPoint(contentRect.origin)
-        let snapped = PrototypeGeometry.metrics.snappedSize(for: BlockSize(contentRect.size))
+        let snapped = PrototypeGeometry.metrics.snappedSize(
+            for: BlockSize(contentRect.size),
+            containingAtLeastTileCount: currentBlock.tileCount
+        )
 
         let updatedBlock = currentBlock.snapped(
             metrics: PrototypeGeometry.metrics,
@@ -773,7 +944,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         let contentRect = window.contentRect(forFrameRect: window.frame)
-        let snapped = PrototypeGeometry.metrics.snappedSize(for: BlockSize(contentRect.size))
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let snapped = PrototypeGeometry.metrics.snappedSize(
+            for: BlockSize(contentRect.size),
+            containingAtLeastTileCount: currentBlock.tileCount
+        )
 
         guard snapped.size != BlockSize(contentRect.size) else {
             return

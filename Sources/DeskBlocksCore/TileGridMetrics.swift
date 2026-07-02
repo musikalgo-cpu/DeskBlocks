@@ -149,7 +149,10 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         origin: BlockPoint? = nil,
         proposedSize: BlockSize? = nil
     ) -> DeskBlockState {
-        let snapped = metrics.snappedSize(for: proposedSize ?? frame.size)
+        let snapped = metrics.snappedSize(
+            for: proposedSize ?? frame.size,
+            containingAtLeastTileCount: tileCount
+        )
 
         return DeskBlockState(
             id: id,
@@ -161,6 +164,35 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: snapped.columns,
             rows: snapped.rows,
             tileCount: tileCount,
+            tileReferences: tileReferences
+        )
+    }
+
+    public func addingTile(metrics: TileGridMetrics) -> DeskBlockState {
+        withTileCount(tileCount + 1, metrics: metrics)
+    }
+
+    public func removingTile(metrics: TileGridMetrics) -> DeskBlockState {
+        withTileCount(max(1, tileCount - 1), metrics: metrics)
+    }
+
+    private func withTileCount(_ newTileCount: Int, metrics: TileGridMetrics) -> DeskBlockState {
+        let safeTileCount = max(1, newTileCount)
+        let currentCapacity = max(1, columns * rows)
+        let layout = metrics.gridLayout(containingTileCount: safeTileCount)
+        let nextColumns = currentCapacity >= safeTileCount ? columns : layout.columns
+        let nextRows = currentCapacity >= safeTileCount ? rows : layout.rows
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            frame: BlockFrame(
+                origin: frame.origin,
+                size: metrics.contentSize(columns: nextColumns, rows: nextRows)
+            ),
+            columns: nextColumns,
+            rows: nextRows,
+            tileCount: safeTileCount,
             tileReferences: tileReferences
         )
     }
@@ -341,6 +373,24 @@ public struct TileGridMetrics: Equatable, Sendable {
             tileLength: tileHeight,
             minimumCount: minimumRows
         )
+
+        return SnappedBlockSize(
+            size: contentSize(columns: columns, rows: rows),
+            columns: columns,
+            rows: rows,
+            tileWidth: tileWidth,
+            tileHeight: tileHeight
+        )
+    }
+
+    public func snappedSize(
+        for proposedSize: BlockSize,
+        containingAtLeastTileCount tileCount: Int
+    ) -> SnappedBlockSize {
+        let snapped = snappedSize(for: proposedSize)
+        let minimumLayout = gridLayout(containingTileCount: tileCount)
+        let columns = max(snapped.columns, minimumLayout.columns)
+        let rows = max(snapped.rows, minimumLayout.rows)
 
         return SnappedBlockSize(
             size: contentSize(columns: columns, rows: rows),

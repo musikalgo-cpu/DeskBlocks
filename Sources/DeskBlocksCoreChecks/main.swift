@@ -67,6 +67,16 @@ private func testSnappingEnforcesMinimumUsableSize() {
     )
 }
 
+private func testSnappingCanEnforceMinimumCapacityForTileCount() {
+    let metrics = TileGridMetrics.prototype
+    let proposedSize = metrics.contentSize(columns: 1, rows: 1)
+    let snapped = metrics.snappedSize(for: proposedSize, containingAtLeastTileCount: 10)
+
+    check(snapped.columns == 4, "expected 10 tiles to require at least 4 columns")
+    check(snapped.rows == 3, "expected 10 tiles to require at least 3 rows")
+    check(snapped.size == metrics.contentSize(columns: 4, rows: 3), "expected minimum size to fit 10 tiles")
+}
+
 private func testTileSizeRemainsUnchangedAcrossSnapping() {
     let metrics = TileGridMetrics.prototype
 
@@ -142,6 +152,71 @@ private func testDeskBlockStateSeparatesRequestedTilesFromFrameCapacity() {
     check(state.tileCapacity == 12, "expected 10-tile block frame to have 12-slot capacity")
     check(state.tileCount == 10, "expected requested tile count to remain 10")
     check(state.visibleTileCount == 10, "expected renderer-visible tile count to remain 10")
+}
+
+private func testDeskBlockStateSnappingDoesNotHideRequestedTiles() {
+    let metrics = TileGridMetrics.prototype
+    let layout = metrics.gridLayout(containingTileCount: 10)
+    let state = DeskBlockState(
+        title: "Ten Tiles",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: layout.columns, rows: layout.rows)
+        ),
+        columns: layout.columns,
+        rows: layout.rows,
+        tileCount: layout.requestedTileCount
+    )
+
+    let snapped = state.snapped(
+        metrics: metrics,
+        proposedSize: metrics.contentSize(columns: 1, rows: 1)
+    )
+
+    check(snapped.columns == 4, "expected snapped block to keep enough columns for 10 tiles")
+    check(snapped.rows == 3, "expected snapped block to keep enough rows for 10 tiles")
+    check(snapped.tileCapacity >= snapped.tileCount, "expected snapped capacity to fit requested tiles")
+    check(snapped.visibleTileCount == 10, "expected all requested tiles to remain visible after resize")
+}
+
+private func testDeskBlockStateAddsTileAndExpandsOnlyWhenNeeded() {
+    let metrics = TileGridMetrics.prototype
+    let state = DeskBlockState(
+        title: "Twelve Tiles",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: 4, rows: 3)
+        ),
+        columns: 4,
+        rows: 3,
+        tileCount: 12
+    )
+
+    let expanded = state.addingTile(metrics: metrics)
+
+    check(expanded.tileCount == 13, "expected add tile to increase tile count")
+    check(expanded.columns == 4, "expected 13 tiles to keep 4 columns")
+    check(expanded.rows == 4, "expected 13 tiles to expand to 4 rows")
+    check(expanded.tileCapacity >= expanded.tileCount, "expected expanded block to fit added tile")
+}
+
+private func testDeskBlockStateRemovesTileWithoutDeletingLastTile() {
+    let metrics = TileGridMetrics.prototype
+    let state = DeskBlockState(
+        title: "One Tile",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: 1, rows: 1)
+        ),
+        columns: 1,
+        rows: 1,
+        tileCount: 1
+    )
+
+    let removed = state.removingTile(metrics: metrics)
+
+    check(removed.tileCount == 1, "expected remove tile to keep at least one tile")
+    check(removed.visibleTileCount == 1, "expected last tile to remain visible")
 }
 
 private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
@@ -407,12 +482,16 @@ testPrototypeMetricsProduceInitialFourByThreeBlockSize()
 testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
 testSnappingEnforcesMinimumUsableSize()
+testSnappingCanEnforceMinimumCapacityForTileCount()
 testTileSizeRemainsUnchangedAcrossSnapping()
 testTileCountLayoutUsesPerfectSquaresWhenPossible()
 testTileCountLayoutAddsColumnsBeforeRowsForNonSquares()
 testTileCountLayoutEnforcesMinimumOneTile()
 testDeskBlockStateKeepsFutureTileReferencesInTheModel()
 testDeskBlockStateSeparatesRequestedTilesFromFrameCapacity()
+testDeskBlockStateSnappingDoesNotHideRequestedTiles()
+testDeskBlockStateAddsTileAndExpandsOnlyWhenNeeded()
+testDeskBlockStateRemovesTileWithoutDeletingLastTile()
 testDeskBlockStateSnapsProposedSizeAndPreservesReferences()
 testDeskBlockStateRoundTripsThroughJSON()
 testDeskBlockStateDecodesLegacyJSONWithoutID()

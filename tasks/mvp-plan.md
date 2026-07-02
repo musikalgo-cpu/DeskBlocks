@@ -260,13 +260,21 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Re-test the accepted AppKit desktop behavior with multiple blocks and typical desktop use before considering the MVP interaction model complete.
 
 **Acceptance criteria:**
-- [ ] Multiple blocks remain usable around Finder icons.
-- [ ] Mission Control limitation remains acceptable.
-- [ ] Spaces and full-screen behavior remain acceptable.
+- [x] Multiple blocks remain usable around Finder icons.
+- [x] Mission Control limitation remains acceptable.
+- [x] Spaces and full-screen behavior remain acceptable.
 
 **Verification:**
-- [ ] Manual desktop test notes are captured in `tasks/`.
-- [ ] Any new limitation is documented before continuing.
+- [x] Manual desktop test notes are captured in `tasks/`.
+- [x] Any new limitation is documented before continuing.
+
+**Implementation notes:**
+- Manual daily-use validation passed for multiple blocks, Finder/Desktop usage, full-screen behavior, Spaces, Mission Control, quit, and relaunch.
+- Validation found that zoom/maximize is inappropriate for DeskBlocks block windows. The zoom button is now disabled/hidden, and no minimize button is added for the MVP.
+- Validation found that resizing below current tile capacity could hide tiles. Snapping and window minimum size now enforce enough capacity for each block's `tileCount`.
+- Validation added block-level `Add Tile` and `Delete Tile` actions through the Edit menu and block context menu.
+- `Delete Tile` never reduces a block below one tile.
+- Automated checks cover resize minimum capacity, add-tile expansion, delete-tile lower bound, and AppKit add/delete smoke paths.
 
 **Dependencies:** Tasks 5-8
 

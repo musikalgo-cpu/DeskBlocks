@@ -103,7 +103,10 @@ MVP UX decisions:
 - Transparency is optical only for the MVP. Empty transparent block areas do not need to pass clicks through to Finder.
 - Blocks should be moved by dragging the title/frame area, not by relying on the empty transparent interior.
 - Resize should use Apple-like window edge/corner behavior or subtle visible handles.
+- Block windows should not support maximize/zoom or minimize in the MVP; they are desktop organization surfaces, not document windows.
+- A block must never resize below the minimum snapped size needed to display its current tile count.
 - Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
+- Users can add or delete tile slots in a block; deleting tiles must never reduce a block below one tile.
 - Block removal should use a context menu or a subtle hover/selection control.
 
 ## MVP Scope
@@ -115,10 +118,12 @@ Required MVP capabilities:
 - Create a block with a title.
 - Create a block through `File > New Block...`.
 - Choose a block's initial tile count during creation.
+- Add or delete tile slots after block creation.
 - Show the block on the macOS desktop as a visual overlay.
 - Drag a block to reposition it.
 - Resize a block with pointer interaction.
 - Snap block size to whole tile rows and columns.
+- Prevent resize states where current tile slots disappear because the block capacity is too small.
 - Persist block title, position, size, and tile count across app restarts.
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
