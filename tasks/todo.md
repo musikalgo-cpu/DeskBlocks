@@ -45,6 +45,6 @@
 - [x] Add minimal block creation.
 - [x] Add title editing.
 - [x] Add block removal.
-- [ ] Calibrate tile visuals for Finder readability.
+- [x] Calibrate tile visuals for Finder readability.
 - [ ] Run daily-use desktop validation.
 - [ ] Complete MVP review gate.

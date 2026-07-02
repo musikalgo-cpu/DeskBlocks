@@ -275,8 +275,8 @@ public struct TileGridMetrics: Equatable, Sendable {
     public let minimumRows: Int
 
     public static let prototype = TileGridMetrics(
-        tileWidth: 96,
-        tileHeight: 88,
+        tileWidth: 112,
+        tileHeight: 104,
         titleHeight: 34,
         padding: 12,
         minimumColumns: 1,

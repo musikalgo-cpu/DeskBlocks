@@ -18,8 +18,8 @@ private func testPrototypeMetricsProduceInitialFourByThreeBlockSize() {
 
     let size = metrics.contentSize(columns: 4, rows: 3)
 
-    check(size.width == 408, "expected initial width to be 408")
-    check(size.height == 322, "expected initial height to be 322")
+    check(size.width == 472, "expected initial width to be 472")
+    check(size.height == 370, "expected initial height to be 370")
 }
 
 private func testSnappingUpAddsAWholeColumn() {
@@ -27,7 +27,7 @@ private func testSnappingUpAddsAWholeColumn() {
     let fourColumnSize = metrics.contentSize(columns: 4, rows: 3)
 
     let snapped = metrics.snappedSize(
-        for: BlockSize(width: fourColumnSize.width + 49, height: fourColumnSize.height)
+        for: BlockSize(width: fourColumnSize.width + 57, height: fourColumnSize.height)
     )
 
     check(snapped.columns == 5, "expected width to snap up to 5 columns")
@@ -43,7 +43,7 @@ private func testSnappingDownRemovesOnlyAWholeColumn() {
     let fourColumnSize = metrics.contentSize(columns: 4, rows: 3)
 
     let snapped = metrics.snappedSize(
-        for: BlockSize(width: fourColumnSize.width - 49, height: fourColumnSize.height)
+        for: BlockSize(width: fourColumnSize.width - 57, height: fourColumnSize.height)
     )
 
     check(snapped.columns == 3, "expected width to snap down to 3 columns")
@@ -163,7 +163,7 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
     let snapped = state.snapped(
         metrics: metrics,
         origin: BlockPoint(x: 30, y: 40),
-        proposedSize: BlockSize(width: state.frame.size.width + 49, height: state.frame.size.height)
+        proposedSize: BlockSize(width: state.frame.size.width + 57, height: state.frame.size.height)
     )
 
     check(snapped.frame.origin == BlockPoint(x: 30, y: 40), "expected updated origin")

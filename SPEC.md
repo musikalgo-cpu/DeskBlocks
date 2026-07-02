@@ -51,6 +51,12 @@ A tile is a fixed-size visual slot intended to fit:
 
 Tile dimensions are a product invariant. The first implementation must choose tile dimensions through measurement in the feasibility prototype, not by guessing.
 
+Current MVP calibration candidate:
+
+- Tile slot: `112x104` points.
+- Tile slot includes the native macOS system folder icon and a single-line label for readability checks.
+- Default `4x3` block content size: `472x370` points including padding and title area.
+
 ### Folder Reference Tile
 
 A future tile may contain a reference to a Finder folder. DeskBlocks should treat this as an app-owned visual reference, not as ownership of the folder itself.

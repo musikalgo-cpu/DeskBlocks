@@ -232,14 +232,19 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Measure and adjust tile dimensions and block chrome so folder icon and label readability are plausible on the user's display.
 
 **Acceptance criteria:**
-- [ ] Tile dimensions are documented as MVP values.
-- [ ] Fixed tile size remains unchanged during resize.
-- [ ] Labels and icon placeholders remain readable enough for the MVP direction.
+- [x] Tile dimensions are documented as MVP values.
+- [x] Fixed tile size remains unchanged during resize.
+- [x] Labels and folder icons remain readable enough for the MVP direction.
 
 **Verification:**
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Manual visual check on the user's desktop.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Manual visual check on the user's desktop.
+
+**Implementation notes:**
+- Current MVP calibration candidate uses `112x104` point tile slots.
+- A default `4x3` block is now `472x370` points including padding and title area.
+- Empty prototype tiles render the native macOS system folder icon and `Folder` label so readability can be judged before real folder references exist.
 
 **Dependencies:** Task 4
 

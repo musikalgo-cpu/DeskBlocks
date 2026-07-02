@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import DeskBlocksCore
 import Foundation
+import UniformTypeIdentifiers
 
 private enum OverlayWindowConfiguration {
     static let level = NSWindow.Level(
@@ -221,11 +222,21 @@ final class DeskBlockView: NSView {
             let row = tileIndex / state.columns
             let column = tileIndex % state.columns
 
-            drawTile(row: row, column: column, originX: originX, originY: originY)
+            let label = tileLabel(at: tileIndex)
+
+            drawTile(row: row, column: column, originX: originX, originY: originY, label: label)
         }
     }
 
-    private func drawTile(row: Int, column: Int, originX: CGFloat, originY: CGFloat) {
+    private func tileLabel(at tileIndex: Int) -> String {
+        guard tileIndex < state.tileReferences.count else {
+            return "Folder"
+        }
+
+        return state.tileReferences[tileIndex].displayName
+    }
+
+    private func drawTile(row: Int, column: Int, originX: CGFloat, originY: CGFloat, label: String) {
         let tileRect = NSRect(
             x: originX + CGFloat(column) * PrototypeGeometry.tileWidth,
             y: originY + CGFloat(row) * PrototypeGeometry.tileHeight,
@@ -244,6 +255,44 @@ final class DeskBlockView: NSView {
         NSColor(calibratedRed: 0.22, green: 0.32, blue: 0.38, alpha: 0.28).setStroke()
         tilePath.lineWidth = 1
         tilePath.stroke()
+
+        drawFolderPlaceholder(in: tileRect)
+        drawTileLabel(label, in: tileRect)
+    }
+
+    private func drawFolderPlaceholder(in tileRect: NSRect) {
+        let iconWidth: CGFloat = 60
+        let iconHeight: CGFloat = 52
+        let iconRect = NSRect(
+            x: tileRect.midX - iconWidth / 2,
+            y: tileRect.minY + 8,
+            width: iconWidth,
+            height: iconHeight
+        )
+
+        let folderIcon = NSWorkspace.shared.icon(for: .folder)
+        folderIcon.size = iconRect.size
+        folderIcon.draw(in: iconRect)
+    }
+
+    private func drawTileLabel(_ label: String, in tileRect: NSRect) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        paragraphStyle.lineBreakMode = .byTruncatingTail
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor(calibratedRed: 0.12, green: 0.16, blue: 0.19, alpha: 1),
+            .paragraphStyle: paragraphStyle
+        ]
+        let labelRect = NSRect(
+            x: tileRect.minX + 6,
+            y: tileRect.maxY - 26,
+            width: tileRect.width - 12,
+            height: 18
+        )
+
+        label.draw(in: labelRect, withAttributes: attributes)
     }
 }
 
