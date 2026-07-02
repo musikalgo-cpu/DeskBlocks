@@ -201,10 +201,15 @@ final class DeskBlockView: NSView {
         let originX = PrototypeGeometry.padding
         let originY = PrototypeGeometry.padding + PrototypeGeometry.titleHeight
 
-        for row in 0..<state.rows {
-            for column in 0..<state.columns {
-                drawTile(row: row, column: column, originX: originX, originY: originY)
-            }
+        guard state.columns > 0 else {
+            return
+        }
+
+        for tileIndex in 0..<state.visibleTileCount {
+            let row = tileIndex / state.columns
+            let column = tileIndex % state.columns
+
+            drawTile(row: row, column: column, originX: originX, originY: originY)
         }
     }
 
@@ -244,6 +249,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         state = loadInitialState()
         renderAllBlockWindows()
         store.save(state)
+
+        if let newBlockTileCountText = commandLineValue(after: "--new-block-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let tileCount = Int(newBlockTileCountText), tileCount > 0 else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                let title = self?.commandLineValue(after: "--new-block-title") ?? "Smoke Block"
+                self?.createBlock(title: title, tileCount: tileCount)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
 
         if let renameSmokeTitle = commandLineValue(after: "--rename-smoke") {
             DispatchQueue.main.async { [weak self] in
@@ -331,11 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func createNewBlock(_ sender: Any?) {
-        let newBlock = makeNewBlock()
-
-        state = state.appending(block: newBlock).snapped(metrics: PrototypeGeometry.metrics)
-        renderWindow(for: newBlock)
-        store.save(state)
+        showNewBlockDialog()
     }
 
     private func installMainMenu() {
@@ -347,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let editMenuItem = NSMenuItem()
         let editMenu = NSMenu(title: "Edit")
         let newBlockItem = NSMenuItem(
-            title: "New Block",
+            title: "New Block...",
             action: #selector(createNewBlock(_:)),
             keyEquivalent: "n"
         )
@@ -429,19 +444,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockViewsByBlockID[block.id] = blockView
     }
 
-    private func makeNewBlock() -> DeskBlockState {
-        let nextNumber = state.blocks.count + 1
+    private func showNewBlockDialog() {
+        let alert = NSAlert()
+        let stackView = NSStackView()
+        let titleField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        let tileCountField = NSTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
+
+        alert.messageText = "New Block"
+        alert.informativeText = "Enter a title and total tile count."
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 8
+        stackView.frame = NSRect(x: 0, y: 0, width: 330, height: 64)
+        stackView.addArrangedSubview(labeledField(label: "Title", field: titleField))
+        stackView.addArrangedSubview(labeledField(label: "Tiles", field: tileCountField))
+
+        titleField.stringValue = "Block \(state.blocks.count + 1)"
+        tileCountField.stringValue = "12"
+        alert.accessoryView = stackView
+
+        let response = alert.runModal()
+
+        guard response == .alertFirstButtonReturn else {
+            return
+        }
+
+        guard let tileCount = Int(tileCountField.stringValue), tileCount > 0 else {
+            NSSound.beep()
+            return
+        }
+
+        createBlock(title: titleField.stringValue, tileCount: tileCount)
+    }
+
+    private func labeledField(label: String, field: NSTextField) -> NSView {
+        let stackView = NSStackView()
+        let labelView = NSTextField(labelWithString: label)
+
+        stackView.orientation = .horizontal
+        stackView.alignment = .firstBaseline
+        stackView.spacing = 8
+        labelView.frame.size.width = 48
+        stackView.addArrangedSubview(labelView)
+        stackView.addArrangedSubview(field)
+
+        return stackView
+    }
+
+    private func createBlock(title: String, tileCount: Int) {
+        let newBlock = makeNewBlock(title: title, tileCount: tileCount)
+
+        state = state.appending(block: newBlock).snapped(metrics: PrototypeGeometry.metrics)
+        renderWindow(for: newBlock)
+        store.save(state)
+    }
+
+    private func makeNewBlock(title: String, tileCount: Int) -> DeskBlockState {
         let offset = Double(state.blocks.count * 28)
+        let layout = PrototypeGeometry.metrics.gridLayout(containingTileCount: tileCount)
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let blockTitle = trimmedTitle.isEmpty ? "Untitled Block" : trimmedTitle
 
         return DeskBlockState(
             id: DeskBlockID(UUID().uuidString),
-            title: "Block \(nextNumber)",
+            title: blockTitle,
             frame: BlockFrame(
                 origin: BlockPoint(x: 240 + offset, y: 240 + offset),
-                size: PrototypeGeometry.metrics.contentSize(columns: 4, rows: 3)
+                size: PrototypeGeometry.metrics.contentSize(columns: layout.columns, rows: layout.rows)
             ),
-            columns: 4,
-            rows: 3,
+            columns: layout.columns,
+            rows: layout.rows,
+            tileCount: layout.requestedTileCount,
             tileReferences: []
         )
     }

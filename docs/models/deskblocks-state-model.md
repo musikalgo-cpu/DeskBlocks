@@ -35,6 +35,7 @@ The tile grid is valid only when:
 - Resize changes column and row counts, not tile dimensions.
 - Final width and height snap to whole tiles plus fixed chrome/padding allowance.
 - No half-tile final state exists.
+- Requested tile count is separate from frame capacity. A non-square request such as `10` can use a `4x3` snapped frame while only `10` tile slots are rendered; unused capacity remains blank.
 
 ### Tile Reference
 
@@ -166,7 +167,7 @@ Current code already covers:
 - Legacy single-block JSON without a block ID decodes with the prototype block ID.
 - Prototype persistence can save and restore `DeskBlocksState`.
 - Prototype rendering can show multiple persisted blocks as separate AppKit windows.
-- `File > New Block` is wired to create a default snapped block with a unique ID.
+- `File > New Block...` is wired to create a snapped block with a unique ID, user-provided title, and a near-square grid derived from total tile count.
 - Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
 - Title editing preserves block identity, geometry, tile references, and persisted state.
 - Rename behavior is guarded by `swift run DeskBlocksPrototype --rename-smoke "Title"`.

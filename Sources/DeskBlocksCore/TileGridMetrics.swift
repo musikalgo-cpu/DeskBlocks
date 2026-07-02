@@ -59,7 +59,16 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     public let frame: BlockFrame
     public let columns: Int
     public let rows: Int
+    public let tileCount: Int
     public let tileReferences: [TileReference]
+
+    public var tileCapacity: Int {
+        max(0, columns * rows)
+    }
+
+    public var visibleTileCount: Int {
+        min(tileCount, tileCapacity)
+    }
 
     public init(
         id: DeskBlockID = .prototype,
@@ -67,6 +76,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         frame: BlockFrame,
         columns: Int,
         rows: Int,
+        tileCount: Int? = nil,
         tileReferences: [TileReference] = []
     ) {
         self.id = id
@@ -74,6 +84,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         self.frame = frame
         self.columns = columns
         self.rows = rows
+        self.tileCount = max(1, tileCount ?? max(1, columns * rows))
         self.tileReferences = tileReferences
     }
 
@@ -83,6 +94,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         case frame
         case columns
         case rows
+        case tileCount
         case tileReferences
     }
 
@@ -94,6 +106,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         frame = try container.decode(BlockFrame.self, forKey: .frame)
         columns = try container.decode(Int.self, forKey: .columns)
         rows = try container.decode(Int.self, forKey: .rows)
+        let decodedTileCount = try container.decodeIfPresent(Int.self, forKey: .tileCount)
+        tileCount = max(1, decodedTileCount ?? max(1, columns * rows))
         tileReferences = try container.decodeIfPresent([TileReference].self, forKey: .tileReferences) ?? []
     }
 
@@ -105,6 +119,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         try container.encode(frame, forKey: .frame)
         try container.encode(columns, forKey: .columns)
         try container.encode(rows, forKey: .rows)
+        try container.encode(tileCount, forKey: .tileCount)
         try container.encode(tileReferences, forKey: .tileReferences)
     }
 
@@ -124,6 +139,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             ),
             columns: columns,
             rows: rows,
+            tileCount: columns * rows,
             tileReferences: []
         )
     }
@@ -144,6 +160,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             ),
             columns: snapped.columns,
             rows: snapped.rows,
+            tileCount: tileCount,
             tileReferences: tileReferences
         )
     }
@@ -161,6 +178,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             frame: frame,
             columns: columns,
             rows: rows,
+            tileCount: tileCount,
             tileReferences: tileReferences
         )
     }
@@ -226,6 +244,16 @@ public struct SnappedBlockSize: Equatable, Sendable {
     public let tileHeight: Double
 }
 
+public struct TileGridLayout: Equatable, Sendable {
+    public let requestedTileCount: Int
+    public let columns: Int
+    public let rows: Int
+
+    public var capacity: Int {
+        columns * rows
+    }
+}
+
 public struct TileGridMetrics: Equatable, Sendable {
     public let tileWidth: Double
     public let tileHeight: Double
@@ -273,6 +301,18 @@ public struct TileGridMetrics: Equatable, Sendable {
         return BlockSize(
             width: padding * 2 + Double(safeColumns) * tileWidth,
             height: padding * 2 + titleHeight + Double(safeRows) * tileHeight
+        )
+    }
+
+    public func gridLayout(containingTileCount tileCount: Int) -> TileGridLayout {
+        let safeTileCount = max(1, tileCount)
+        let columns = max(minimumColumns, Int(ceil(sqrt(Double(safeTileCount)))))
+        let rows = max(minimumRows, Int(ceil(Double(safeTileCount) / Double(columns))))
+
+        return TileGridLayout(
+            requestedTileCount: safeTileCount,
+            columns: columns,
+            rows: rows
         )
     }
 

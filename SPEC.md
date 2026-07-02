@@ -89,7 +89,10 @@ DeskBlocks should feel native to macOS and follow an Apple-like visual style: qu
 MVP UX decisions:
 
 - The app starts as a normal Dock app, not a menu bar-only app.
-- Block creation happens through the app menu, starting with `File > New Block`.
+- Block creation happens through the app menu, starting with `File > New Block...`.
+- `File > New Block...` asks for a block title and a total tile count.
+- The total tile count is converted into a near-square grid: perfect squares stay square, and non-squares increase the column count first before adding another row.
+- For non-square counts, the frame may contain unused geometric capacity, but DeskBlocks must render only the requested tile slots. Example: `10` requested tiles creates a `4x3` frame capacity while showing only `10` tile slots; the remaining capacity stays blank.
 - Blocks are visually transparent wherever there is no frame, text, icon, button, resize affordance, or explicit hover/selection UI.
 - Transparency is optical only for the MVP. Empty transparent block areas do not need to pass clicks through to Finder.
 - Blocks should be moved by dragging the title/frame area, not by relying on the empty transparent interior.
@@ -104,7 +107,8 @@ The MVP should prove the desktop-block interaction model before broad customizat
 Required MVP capabilities:
 
 - Create a block with a title.
-- Create a block through `File > New Block`.
+- Create a block through `File > New Block...`.
+- Choose a block's initial tile count during creation.
 - Show the block on the macOS desktop as a visual overlay.
 - Drag a block to reposition it.
 - Resize a block with pointer interaction.

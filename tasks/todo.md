@@ -42,7 +42,7 @@
 - [x] Model multiple blocks in core.
 - [x] Persist multiple blocks.
 - [x] Render multiple blocks as AppKit windows.
-- [x] Add minimal block creation.
+- [ ] Add minimal block creation.
 - [x] Add title editing.
 - [ ] Add block removal.
 - [ ] Calibrate tile visuals for Finder readability.

@@ -76,6 +76,41 @@ private func testTileSizeRemainsUnchangedAcrossSnapping() {
     check(snapped.tileHeight == metrics.tileHeight, "expected tile height to remain unchanged")
 }
 
+private func testTileCountLayoutUsesPerfectSquaresWhenPossible() {
+    let metrics = TileGridMetrics.prototype
+
+    check(metrics.gridLayout(containingTileCount: 9).columns == 3, "expected 9 tiles to use 3 columns")
+    check(metrics.gridLayout(containingTileCount: 9).rows == 3, "expected 9 tiles to use 3 rows")
+    check(metrics.gridLayout(containingTileCount: 16).columns == 4, "expected 16 tiles to use 4 columns")
+    check(metrics.gridLayout(containingTileCount: 16).rows == 4, "expected 16 tiles to use 4 rows")
+}
+
+private func testTileCountLayoutAddsColumnsBeforeRowsForNonSquares() {
+    let metrics = TileGridMetrics.prototype
+
+    let fiveTiles = metrics.gridLayout(containingTileCount: 5)
+    let tenTiles = metrics.gridLayout(containingTileCount: 10)
+    let seventeenTiles = metrics.gridLayout(containingTileCount: 17)
+
+    check(fiveTiles.columns == 3, "expected 5 tiles to start a third column")
+    check(fiveTiles.rows == 2, "expected 5 tiles to fit in 2 rows")
+    check(tenTiles.columns == 4, "expected 10 tiles to start a fourth column")
+    check(tenTiles.rows == 3, "expected 10 tiles to fit in 3 rows")
+    check(tenTiles.requestedTileCount == 10, "expected 10 requested tiles to be preserved")
+    check(tenTiles.capacity == 12, "expected 10 requested tiles to use a 12-slot frame capacity")
+    check(seventeenTiles.columns == 5, "expected 17 tiles to start a fifth column")
+    check(seventeenTiles.rows == 4, "expected 17 tiles to fit in 4 rows")
+}
+
+private func testTileCountLayoutEnforcesMinimumOneTile() {
+    let metrics = TileGridMetrics.prototype
+    let layout = metrics.gridLayout(containingTileCount: 0)
+
+    check(layout.requestedTileCount == 1, "expected non-positive tile count to normalize to 1")
+    check(layout.columns == 1, "expected minimum layout to use 1 column")
+    check(layout.rows == 1, "expected minimum layout to use 1 row")
+}
+
 private func testDeskBlockStateKeepsFutureTileReferencesInTheModel() {
     let state = DeskBlockState.prototypeDefault()
 
@@ -83,7 +118,30 @@ private func testDeskBlockStateKeepsFutureTileReferencesInTheModel() {
     check(state.title == "DeskBlocks Prototype", "expected prototype title")
     check(state.columns == 4, "expected default columns")
     check(state.rows == 3, "expected default rows")
+    check(state.tileCount == 12, "expected default tile count")
+    check(state.visibleTileCount == 12, "expected default visible tile count")
     check(state.tileReferences.isEmpty, "expected empty tile references for current prototype")
+}
+
+private func testDeskBlockStateSeparatesRequestedTilesFromFrameCapacity() {
+    let metrics = TileGridMetrics.prototype
+    let layout = metrics.gridLayout(containingTileCount: 10)
+    let state = DeskBlockState(
+        title: "Ten Tiles",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: layout.columns, rows: layout.rows)
+        ),
+        columns: layout.columns,
+        rows: layout.rows,
+        tileCount: layout.requestedTileCount
+    )
+
+    check(state.columns == 4, "expected 10-tile block to use 4 columns")
+    check(state.rows == 3, "expected 10-tile block to use 3 rows")
+    check(state.tileCapacity == 12, "expected 10-tile block frame to have 12-slot capacity")
+    check(state.tileCount == 10, "expected requested tile count to remain 10")
+    check(state.visibleTileCount == 10, "expected renderer-visible tile count to remain 10")
 }
 
 private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
@@ -96,6 +154,7 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
         ),
         columns: 4,
         rows: 3,
+        tileCount: 10,
         tileReferences: [
             TileReference(id: "tile-1", displayName: "Invoices", folderReference: "bookmark-placeholder")
         ]
@@ -111,6 +170,7 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
     check(snapped.id == state.id, "expected block ID to survive snapping")
     check(snapped.columns == 5, "expected snapped columns")
     check(snapped.rows == 3, "expected rows to remain unchanged")
+    check(snapped.tileCount == 10, "expected requested tile count to survive snapping")
     check(snapped.tileReferences == state.tileReferences, "expected tile references to survive snapping")
 }
 
@@ -153,6 +213,7 @@ private func testDeskBlockStateDecodesLegacyJSONWithoutID() {
         check(decoded.title == "Legacy Prototype", "expected legacy title to decode")
         check(decoded.columns == 4, "expected legacy columns to decode")
         check(decoded.rows == 3, "expected legacy rows to decode")
+        check(decoded.tileCount == 12, "expected legacy state to default tile count from grid capacity")
     } catch {
         fputs("FAIL: expected legacy JSON without ID to decode, got \(error)\n", stderr)
         Foundation.exit(1)
@@ -307,7 +368,11 @@ testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
 testSnappingEnforcesMinimumUsableSize()
 testTileSizeRemainsUnchangedAcrossSnapping()
+testTileCountLayoutUsesPerfectSquaresWhenPossible()
+testTileCountLayoutAddsColumnsBeforeRowsForNonSquares()
+testTileCountLayoutEnforcesMinimumOneTile()
 testDeskBlockStateKeepsFutureTileReferencesInTheModel()
+testDeskBlockStateSeparatesRequestedTilesFromFrameCapacity()
 testDeskBlockStateSnapsProposedSizeAndPreservesReferences()
 testDeskBlockStateRoundTripsThroughJSON()
 testDeskBlockStateDecodesLegacyJSONWithoutID()

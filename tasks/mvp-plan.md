@@ -11,7 +11,8 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - Keep `DeskBlocksCore` responsible for block state, tile geometry, snapping, validation, and persistence-safe data structures.
 - Keep AppKit responsible for windows, pointer interaction, rendering, menus/controls, and macOS desktop behavior.
 - Keep the current JSON persistence approach unless a later task explicitly justifies a persistence-format ADR.
-- Use Apple-like native macOS UX: normal Dock app, `File > New Block` for creation, subtle native controls, and optical transparency outside frame/text/buttons/handles.
+- Use Apple-like native macOS UX: normal Dock app, `File > New Block...` for creation, subtle native controls, and optical transparency outside frame/text/buttons/handles.
+- `File > New Block...` asks for title and total tile count. The core converts tile count to a near-square grid by using perfect squares when possible and increasing columns first for non-squares.
 - Treat transparent empty block areas as visually transparent only for the MVP; click-through to Finder is not required.
 
 ## Phase 1: MVP Foundation
@@ -21,7 +22,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Choose the minimal user-facing way to create a new block. The current open options are app menu, menu bar item, floating control, or direct desktop interaction.
 
 **Acceptance criteria:**
-- [x] One MVP creation path is selected: `File > New Block` in a normal Dock app.
+- [x] One MVP creation path is selected: `File > New Block...` in a normal Dock app.
 - [x] Rejected options are briefly documented with rationale.
 - [x] The selected path does not require unapproved OS permissions or external services.
 
@@ -129,18 +130,23 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Implement the selected MVP block creation path from Task 1 and create a valid default snapped block.
 
 **Acceptance criteria:**
-- [x] User can create a new block through the selected path.
-- [x] New blocks get unique IDs and default titles.
+- [ ] User can create a new block through the selected dialog path.
+- [x] New blocks get unique IDs and user-provided titles.
+- [x] New blocks derive columns and rows from total tile count.
+- [x] Non-square tile counts preserve requested visible slots instead of filling all frame capacity.
 - [x] New blocks persist after restart.
 
 **Verification:**
 - [x] Run `swift run DeskBlocksCoreChecks`.
 - [x] Run `swift build`.
-- [x] Manual create, quit, relaunch check.
+- [x] Automated creation smoke check with `swift run DeskBlocksPrototype --new-block-title "Ten Tiles" --new-block-smoke 10`.
+- [x] Regression check confirms `10` requested tiles use `4x3` frame capacity while rendering only `10` slots.
+- [ ] Manual `File > New Block...` dialog, quit, relaunch check.
 
 **Implementation notes:**
-- `File > New Block` is wired through the AppKit main menu.
-- User manually verified `File > New Block`.
+- `File > New Block...` is wired through the AppKit main menu.
+- The previous immediate-default-block creation was replaced with a native dialog for title and total tile count.
+- `10` tiles currently produces a `4x3` frame through the core tile-count layout rule, but only `10` tile slots render; the unused frame capacity stays blank.
 - A native close crash during quit/relaunch validation was fixed by retaining AppKit windows through close and avoiding window reference cleanup during AppKit's close callback.
 
 **Dependencies:** Task 1, Task 4
