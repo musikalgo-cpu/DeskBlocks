@@ -61,10 +61,15 @@ final class PrototypeStateStore {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     }
 
-    func load() -> DeskBlockState? {
+    func load() -> DeskBlocksState? {
         do {
             let data = try Data(contentsOf: fileURL)
-            return try decoder.decode(DeskBlockState.self, from: data)
+            if let state = try? decoder.decode(DeskBlocksState.self, from: data) {
+                return state
+            }
+
+            let legacyBlock = try decoder.decode(DeskBlockState.self, from: data)
+            return DeskBlocksState(blocks: [legacyBlock])
         } catch CocoaError.fileReadNoSuchFile {
             return nil
         } catch {
@@ -73,7 +78,7 @@ final class PrototypeStateStore {
         }
     }
 
-    func save(_ state: DeskBlockState) {
+    func save(_ state: DeskBlocksState) {
         do {
             try FileManager.default.createDirectory(
                 at: fileURL.deletingLastPathComponent(),
@@ -196,48 +201,30 @@ final class DeskBlockView: NSView {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let store = PrototypeStateStore()
-    private var state = DeskBlockState.prototypeDefault()
-    private var window: NSWindow?
-    private var blockView: DeskBlockView?
-    private var isApplyingSnappedFrame = false
+    private var state = DeskBlocksState.prototypeDefault()
+    private var windowsByBlockID: [DeskBlockID: NSWindow] = [:]
+    private var blockViewsByBlockID: [DeskBlockID: DeskBlockView] = [:]
+    private var blockIDsApplyingSnappedFrame: Set<DeskBlockID> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        state = store.load() ?? DeskBlockState.prototypeDefault()
-        state = state.snapped(metrics: PrototypeGeometry.metrics)
+        installMainMenu()
 
-        let window = NSWindow(
-            contentRect: state.frame.contentRect,
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        let minimumContentSize = PrototypeGeometry.metrics.contentSize(columns: 1, rows: 1)
-        let minimumFrameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
-        let blockView = DeskBlockView(state: state)
-
-        window.title = state.title
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        window.hasShadow = false
-        window.isMovableByWindowBackground = true
-        window.hidesOnDeactivate = false
-        window.canHide = false
-        window.level = OverlayWindowConfiguration.level
-        window.collectionBehavior = OverlayWindowConfiguration.collectionBehavior
-        window.minSize = minimumFrameSize
-        window.delegate = self
-        window.contentView = blockView
-        window.makeKeyAndOrderFront(nil)
-
-        self.window = window
-        self.blockView = blockView
+        state = loadInitialState()
+        renderAllBlockWindows()
         store.save(state)
+
+        if CommandLine.arguments.contains("--close-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                self?.windowsByBlockID.values.first?.close()
+                DispatchQueue.main.async {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        updateStateFromWindow(save: true)
+        updateStateFromAllWindows(save: true)
     }
 
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
@@ -252,24 +239,160 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func windowDidResize(_ notification: Notification) {
-        updateStateFromWindow(save: false)
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        updateState(from: window, save: false)
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
-        applySnappedFrameIfNeeded()
-        updateStateFromWindow(save: true)
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        applySnappedFrameIfNeeded(to: window)
+        updateState(from: window, save: true)
     }
 
     func windowDidMove(_ notification: Notification) {
-        updateStateFromWindow(save: true)
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        updateState(from: window, save: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        updateStateFromAllWindows(save: true)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
 
-    private func updateStateFromWindow(save: Bool) {
-        guard let window else {
+    @objc private func createNewBlock(_ sender: Any?) {
+        let newBlock = makeNewBlock()
+
+        state = state.appending(block: newBlock).snapped(metrics: PrototypeGeometry.metrics)
+        renderWindow(for: newBlock)
+        store.save(state)
+    }
+
+    private func installMainMenu() {
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+        let fileMenuItem = NSMenuItem()
+        let fileMenu = NSMenu(title: "File")
+        let newBlockItem = NSMenuItem(
+            title: "New Block",
+            action: #selector(createNewBlock(_:)),
+            keyEquivalent: "n"
+        )
+
+        appMenu.addItem(
+            NSMenuItem(
+                title: "Quit DeskBlocks",
+                action: #selector(NSApplication.terminate(_:)),
+                keyEquivalent: "q"
+            )
+        )
+        appMenuItem.submenu = appMenu
+
+        newBlockItem.target = self
+        fileMenu.addItem(newBlockItem)
+        fileMenuItem.submenu = fileMenu
+
+        mainMenu.addItem(appMenuItem)
+        mainMenu.addItem(fileMenuItem)
+        NSApplication.shared.mainMenu = mainMenu
+    }
+
+    private func loadInitialState() -> DeskBlocksState {
+        let loadedState = store.load() ?? DeskBlocksState.prototypeDefault()
+        let nonEmptyState = loadedState.blocks.isEmpty ? DeskBlocksState.prototypeDefault() : loadedState
+
+        return nonEmptyState.snapped(metrics: PrototypeGeometry.metrics)
+    }
+
+    private func renderAllBlockWindows() {
+        state.blocks.forEach { block in
+            renderWindow(for: block)
+        }
+    }
+
+    private func renderWindow(for block: DeskBlockState) {
+        let window = NSWindow(
+            contentRect: block.frame.contentRect,
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        let minimumContentSize = PrototypeGeometry.metrics.contentSize(columns: 1, rows: 1)
+        let minimumFrameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
+        let blockView = DeskBlockView(state: block)
+
+        window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
+        window.title = block.title
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.isReleasedWhenClosed = false
+        window.isMovableByWindowBackground = true
+        window.hidesOnDeactivate = false
+        window.canHide = false
+        window.level = OverlayWindowConfiguration.level
+        window.collectionBehavior = OverlayWindowConfiguration.collectionBehavior
+        window.minSize = minimumFrameSize
+        window.delegate = self
+        window.contentView = blockView
+        window.makeKeyAndOrderFront(nil)
+
+        windowsByBlockID[block.id] = window
+        blockViewsByBlockID[block.id] = blockView
+    }
+
+    private func makeNewBlock() -> DeskBlockState {
+        let nextNumber = state.blocks.count + 1
+        let offset = Double(state.blocks.count * 28)
+
+        return DeskBlockState(
+            id: DeskBlockID(UUID().uuidString),
+            title: "Block \(nextNumber)",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 240 + offset, y: 240 + offset),
+                size: PrototypeGeometry.metrics.contentSize(columns: 4, rows: 3)
+            ),
+            columns: 4,
+            rows: 3,
+            tileReferences: []
+        )
+    }
+
+    private func blockID(for window: NSWindow) -> DeskBlockID? {
+        windowsByBlockID.first { _, storedWindow in
+            storedWindow === window
+        }?.key
+    }
+
+    private func updateStateFromAllWindows(save: Bool) {
+        windowsByBlockID.values.forEach { window in
+            updateState(from: window, save: false)
+        }
+
+        if save {
+            store.save(state)
+        }
+    }
+
+    private func updateState(from window: NSWindow, save: Bool) {
+        guard
+            let blockID = blockID(for: window),
+            let currentBlock = state.block(id: blockID)
+        else {
             return
         }
 
@@ -277,20 +400,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let origin = BlockPoint(contentRect.origin)
         let snapped = PrototypeGeometry.metrics.snappedSize(for: BlockSize(contentRect.size))
 
-        state = state.snapped(
+        let updatedBlock = currentBlock.snapped(
             metrics: PrototypeGeometry.metrics,
             origin: origin,
             proposedSize: snapped.size
         )
-        blockView?.state = state
+
+        state = state.updating(block: updatedBlock)
+        blockViewsByBlockID[blockID]?.state = updatedBlock
+        window.title = updatedBlock.title
 
         if save {
             store.save(state)
         }
     }
 
-    private func applySnappedFrameIfNeeded() {
-        guard let window, !isApplyingSnappedFrame else {
+    private func applySnappedFrameIfNeeded(to window: NSWindow) {
+        guard
+            let blockID = blockID(for: window),
+            !blockIDsApplyingSnappedFrame.contains(blockID)
+        else {
             return
         }
 
@@ -304,9 +433,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let snappedContentRect = NSRect(origin: contentRect.origin, size: snapped.size.nsSize)
         let snappedFrame = window.frameRect(forContentRect: snappedContentRect)
 
-        isApplyingSnappedFrame = true
+        blockIDsApplyingSnappedFrame.insert(blockID)
         window.setFrame(snappedFrame, display: true)
-        isApplyingSnappedFrame = false
+        blockIDsApplyingSnappedFrame.remove(blockID)
     }
 }
 

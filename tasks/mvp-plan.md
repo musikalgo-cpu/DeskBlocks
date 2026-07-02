@@ -72,15 +72,15 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Save and restore the multiple-block state using the current JSON persistence approach without changing the persistence format family.
 
 **Acceptance criteria:**
-- [ ] Multiple blocks survive quit and relaunch.
-- [ ] Block IDs, titles, positions, sizes, and tile-reference arrays round-trip.
-- [ ] Decode failure still falls back safely without file-moving behavior.
+- [x] Multiple blocks survive quit and relaunch.
+- [x] Block IDs, titles, positions, sizes, and tile-reference arrays round-trip.
+- [x] Decode failure still falls back safely without file-moving behavior.
 
 **Verification:**
-- [ ] Add persistence round-trip checks to `DeskBlocksCoreChecks`.
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Manual relaunch smoke check with `swift run DeskBlocksPrototype`.
+- [x] Add persistence round-trip checks to `DeskBlocksCoreChecks`.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Manual relaunch smoke check with `swift run DeskBlocksPrototype`.
 
 **Dependencies:** Task 2
 
@@ -94,8 +94,8 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 ## Checkpoint: Core MVP State
 
 - [x] Multiple-block core checks pass.
-- [ ] Persistence checks pass.
-- [ ] No Finder file operations were introduced.
+- [x] Persistence checks pass.
+- [x] No Finder file operations were introduced.
 - [ ] `docs/models/deskblocks-state-model.md` matches the implemented lifecycle.
 
 ## Phase 2: Desktop Block Interactions
@@ -105,14 +105,16 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Replace the one hard-coded block window with rendering from persisted block state. Each block should be draggable and resizable independently.
 
 **Acceptance criteria:**
-- [ ] All persisted blocks render after launch.
-- [ ] Moving one block does not move or resize another block.
-- [ ] Resizing one block snaps through core logic and persists.
+- [x] All persisted blocks render after launch.
+- [x] Moving one block does not move or resize another block.
+- [x] Resizing one block snaps through core logic and persists.
 
 **Verification:**
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Manual launch, move, resize, quit, relaunch check.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Manual launch, move, resize, quit, relaunch check.
+- [x] Automated Window Server smoke check saw two DeskBlocks windows from a temporary two-block persisted state, including after relaunch.
+- [x] Close crash fixed and guarded with `swift run DeskBlocksPrototype --close-smoke`.
 
 **Dependencies:** Task 3
 
@@ -127,14 +129,19 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Implement the selected MVP block creation path from Task 1 and create a valid default snapped block.
 
 **Acceptance criteria:**
-- [ ] User can create a new block through the selected path.
-- [ ] New blocks get unique IDs and default titles.
-- [ ] New blocks persist after restart.
+- [x] User can create a new block through the selected path.
+- [x] New blocks get unique IDs and default titles.
+- [x] New blocks persist after restart.
 
 **Verification:**
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Manual create, quit, relaunch check.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Manual create, quit, relaunch check.
+
+**Implementation notes:**
+- `File > New Block` is wired through the AppKit main menu.
+- User manually verified `File > New Block`.
+- A native close crash during quit/relaunch validation was fixed by retaining AppKit windows through close and avoiding window reference cleanup during AppKit's close callback.
 
 **Dependencies:** Task 1, Task 4
 
@@ -194,8 +201,8 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 ## Checkpoint: Usable MVP Blocks
 
 - [ ] User can create, rename, move, resize, remove, quit, and relaunch.
-- [ ] All block state restores correctly.
-- [ ] Manual desktop behavior remains acceptable with multiple blocks.
+- [x] Current create/move/resize state restores correctly.
+- [x] Manual desktop behavior remains acceptable with multiple blocks.
 - [ ] `references/definition-of-done.md` is satisfied for implemented slices.
 
 ## Phase 3: Visual Calibration And Review

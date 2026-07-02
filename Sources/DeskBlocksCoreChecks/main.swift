@@ -252,6 +252,35 @@ private func testDeskBlocksStateRoundTripsThroughJSON() {
     }
 }
 
+private func testDeskBlocksStateAppendsAndUpdatesBlocksByID() {
+    let metrics = TileGridMetrics.prototype
+    let initialBlock = DeskBlockState.prototypeDefault()
+    let addedBlock = DeskBlockState(
+        id: DeskBlockID("added"),
+        title: "Added",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 520, y: 240),
+            size: metrics.contentSize(columns: 2, rows: 2)
+        ),
+        columns: 2,
+        rows: 2
+    )
+    let initialState = DeskBlocksState(blocks: [initialBlock])
+
+    let appended = initialState.appending(block: addedBlock)
+    let updatedBlock = addedBlock.snapped(
+        metrics: metrics,
+        origin: BlockPoint(x: 640, y: 260),
+        proposedSize: metrics.contentSize(columns: 3, rows: 2)
+    )
+    let updated = appended.updating(block: updatedBlock)
+
+    check(appended.blocks.count == 2, "expected appended state to contain two blocks")
+    check(updated.blocks.count == 2, "expected update to preserve block count")
+    check(updated.block(id: initialBlock.id) == initialBlock, "expected first block to remain unchanged")
+    check(updated.block(id: addedBlock.id) == updatedBlock, "expected matching block to update by ID")
+}
+
 testPrototypeMetricsProduceInitialFourByThreeBlockSize()
 testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
@@ -264,5 +293,6 @@ testDeskBlockStateDecodesLegacyJSONWithoutID()
 testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
 testDeskBlocksStateSnapsEveryBlockAndPreservesIDs()
 testDeskBlocksStateRoundTripsThroughJSON()
+testDeskBlocksStateAppendsAndUpdatesBlocksByID()
 
 print("DeskBlocksCoreChecks passed")

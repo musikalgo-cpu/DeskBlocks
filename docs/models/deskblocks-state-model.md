@@ -164,6 +164,10 @@ Current code already covers:
 - Multiple-block normalization through `DeskBlocksState.snapped`.
 - JSON round-trip checks through `DeskBlocksCoreChecks`.
 - Legacy single-block JSON without a block ID decodes with the prototype block ID.
+- Prototype persistence can save and restore `DeskBlocksState`.
+- Prototype rendering can show multiple persisted blocks as separate AppKit windows.
+- `File > New Block` is wired to create a default snapped block with a unique ID.
+- Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
 
 Current feasibility evidence covers:
 
@@ -176,6 +180,8 @@ Current code still needs future evidence for:
 
 - Multi-monitor behavior when a second display is available.
 - Daily-use validation of the current `desktopIconWindow + 1` window level.
+- Title editing.
+- Block removal.
 
 ## When To Update This Model
 

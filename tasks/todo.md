@@ -40,9 +40,9 @@
 - [x] Create MVP implementation plan.
 - [x] Decide MVP block creation UX.
 - [x] Model multiple blocks in core.
-- [ ] Persist multiple blocks.
-- [ ] Render multiple blocks as AppKit windows.
-- [ ] Add minimal block creation.
+- [x] Persist multiple blocks.
+- [x] Render multiple blocks as AppKit windows.
+- [x] Add minimal block creation.
 - [ ] Add title editing.
 - [ ] Add block removal.
 - [ ] Calibrate tile visuals for Finder readability.

@@ -151,6 +151,9 @@ public struct DeskBlocksState: Codable, Equatable, Sendable {
     public let blocks: [DeskBlockState]
 
     public init(blocks: [DeskBlockState]) {
+        let blockIDs = Set(blocks.map(\.id))
+        precondition(blockIDs.count == blocks.count, "DeskBlocksState block IDs must be unique")
+
         self.blocks = blocks
     }
 
@@ -171,6 +174,28 @@ public struct DeskBlocksState: Codable, Equatable, Sendable {
 
     public func block(id: DeskBlockID) -> DeskBlockState? {
         blocks.first { $0.id == id }
+    }
+
+    public func appending(block: DeskBlockState) -> DeskBlocksState {
+        DeskBlocksState(blocks: blocks + [block])
+    }
+
+    public func updating(block updatedBlock: DeskBlockState) -> DeskBlocksState {
+        var didUpdate = false
+        let updatedBlocks = blocks.map { block in
+            guard block.id == updatedBlock.id else {
+                return block
+            }
+
+            didUpdate = true
+            return updatedBlock
+        }
+
+        guard didUpdate else {
+            return self
+        }
+
+        return DeskBlocksState(blocks: updatedBlocks)
     }
 }
 
