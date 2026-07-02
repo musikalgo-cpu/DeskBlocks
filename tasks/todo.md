@@ -6,6 +6,7 @@
 - [x] Document the first-test stack rationale.
 - [x] Create the manual prototype acceptance checklist.
 - [x] Review checklist against `SPEC.md` and ADR-001.
+- [x] Create explicit DeskBlocks state model.
 
 ## Feasibility Prototype
 
@@ -23,8 +24,8 @@
 ## Feasibility Evaluation
 
 - [x] Implement desktop-overlay prototype slice.
-- [ ] Manually check desktop layer behavior.
-- [ ] Check Finder icon interaction.
+- [x] Manually check desktop layer behavior.
+- [x] Check Finder icon interaction.
 - [ ] Check Mission Control behavior.
 - [ ] Check Spaces behavior.
 - [ ] Check multi-monitor behavior if available.

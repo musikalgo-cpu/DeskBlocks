@@ -30,6 +30,8 @@ Partial. Automated and code-level checks were completed. Manual desktop behavior
 | Desktop-overlay candidate builds. | PASS | Prototype now configures a transparent/lightweight AppKit window with an explicit desktop-adjacent window level. |
 | Desktop-overlay candidate launches. | PASS | `swift run DeskBlocksPrototype` launched after overlay changes without crash. |
 | Idle resource observation. | PASS | Latest sampled process reading showed `0.0%` CPU and about `33 MB` RSS. This is only a smoke observation, not a benchmark. |
+| Overlay candidate 1 interaction. | FAIL | `CGWindowLevelForKey(.desktopIconWindow) - 1` was visible but could not be selected, dragged, or resized. Likely below Finder desktop icon interaction. |
+| Overlay candidate 2 interaction. | PASS | `CGWindowLevelForKey(.desktopIconWindow) + 1` is visible, selectable, draggable, resizable, and not too intrusive relative to Finder icons in the user's manual check. |
 
 ## Current Prototype State
 
@@ -40,20 +42,21 @@ The current AppKit prototype now has a first desktop-overlay candidate configura
 - The title is hidden and the titlebar is transparent.
 - The window background is clear, non-opaque, and shadowless.
 - The window can be dragged by its background.
-- The candidate window level is `CGWindowLevelForKey(.desktopIconWindow) - 1`, represented as `NSWindow.Level`.
+- The first candidate window level was `CGWindowLevelForKey(.desktopIconWindow) - 1`; it was visible but not selectable.
+- The current candidate window level is `CGWindowLevelForKey(.desktopIconWindow) + 1`, represented as `NSWindow.Level`.
 - The window collection behavior is `.canJoinAllSpaces`, `.stationary`, `.ignoresCycle`, and `.fullScreenAuxiliary`.
 
-This means the prototype now has code-level support for a desktop-adjacent overlay candidate. It still does not prove DeskBlocks' highest-risk desktop-layer behavior until a human evaluates it visually against Finder icons, Spaces, Mission Control, full-screen apps, and normal desktop use.
+This means the prototype now has code-level support for a desktop-adjacent overlay candidate, and candidate 2 passed the first desktop/Finder interaction check. It still needs evaluation in Spaces, Mission Control, full-screen apps, and any multi-monitor setup before the stack decision.
 
 ## Manual Checks Still Required
 
 | Check | Status | Notes |
 |---|---|---|
-| One block is visually present in the intended desktop layer. | BLOCKED | Needs human visual confirmation. |
-| Block can be moved by pointer interaction. | BLOCKED | Needs human visual confirmation. |
-| Block can be resized by pointer interaction. | BLOCKED | Needs human visual confirmation. |
-| Resize snapping feels stable and visible. | BLOCKED | Needs human visual confirmation. |
-| Finder icons remain usable around the block. | BLOCKED | Needs human visual confirmation. |
+| One block is visually present in the intended desktop layer. | PASS | Candidate 2 visible on desktop. |
+| Block can be moved by pointer interaction. | PASS | Candidate 2 can be dragged. |
+| Block can be resized by pointer interaction. | PASS | Candidate 2 can be resized. |
+| Resize snapping feels stable and visible. | PASS | User reported resize test as pass for candidate 2. |
+| Finder icons remain usable around the block. | PASS | User reported candidate 2 is not too intrusive relative to Finder icons. |
 | Mission Control behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
 | Spaces behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
 | Full-screen app behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
@@ -61,21 +64,19 @@ This means the prototype now has code-level support for a desktop-adjacent overl
 
 ## Limitations Found
 
-- The current window-level choice is only a candidate and has not been visually accepted.
-- Finder interaction has not been proven.
+- The current window-level choice has passed the first desktop/Finder interaction check, but has not been tested in Mission Control, Spaces, full-screen apps, or multi-monitor setups.
 - Spaces, Mission Control, full-screen app behavior, and multi-monitor behavior have not been proven.
 - The resource observation is a single smoke sample, not a reliable performance benchmark.
 - The project is not yet a Git repository, so there is no commit-based rollback point.
 
 ## Recommendation
 
-Continue with Swift/AppKit into manual evaluation of the overlay candidate before writing the final stack ADR.
+Continue with Swift/AppKit into the remaining manual evaluation of Mission Control, Spaces, full-screen apps, and multi-monitor behavior before writing the final stack ADR.
 
 Next human check should specifically test:
 
 - transparent or visually lightweight window style
 - candidate `NSWindow.Level`
-- Finder icon interaction
 - Spaces and Mission Control behavior
 - whether the block can remain useful without disrupting normal desktop use
 

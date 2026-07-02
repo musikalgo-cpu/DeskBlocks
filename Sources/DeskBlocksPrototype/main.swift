@@ -5,7 +5,7 @@ import Foundation
 
 private enum OverlayWindowConfiguration {
     static let level = NSWindow.Level(
-        rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) - 1
+        rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1
     )
     static let collectionBehavior: NSWindow.CollectionBehavior = [
         .canJoinAllSpaces,

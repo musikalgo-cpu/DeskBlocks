@@ -11,6 +11,7 @@ The first phase proves whether DeskBlocks can work as a macOS desktop-level visu
 - Rationale: DeskBlocks' first risk is native macOS window behavior, and AppKit exposes `NSWindow` behavior directly. Electron and Tauri remain candidates if the native prototype fails or becomes too costly.
 - Optimize the first prototype for learning, not product polish.
 - Keep grid snapping logic separable from macOS window behavior so it can be tested and reused.
+- Keep lifecycle and invariants explicit in `docs/models/deskblocks-state-model.md`.
 - Do not implement Finder file management in the feasibility phase.
 
 ## Phase 1: Feasibility Preparation
