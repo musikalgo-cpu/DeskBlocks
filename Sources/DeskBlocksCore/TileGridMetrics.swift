@@ -1,3 +1,5 @@
+import Foundation
+
 public struct BlockPoint: Codable, Equatable, Sendable {
     public let x: Double
     public let y: Double
@@ -142,6 +144,23 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             ),
             columns: snapped.columns,
             rows: snapped.rows,
+            tileReferences: tileReferences
+        )
+    }
+
+    public func renamed(to proposedTitle: String) -> DeskBlockState {
+        let trimmedTitle = proposedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedTitle.isEmpty else {
+            return self
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: trimmedTitle,
+            frame: frame,
+            columns: columns,
+            rows: rows,
             tileReferences: tileReferences
         )
     }

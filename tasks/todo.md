@@ -43,7 +43,7 @@
 - [x] Persist multiple blocks.
 - [x] Render multiple blocks as AppKit windows.
 - [x] Add minimal block creation.
-- [ ] Add title editing.
+- [x] Add title editing.
 - [ ] Add block removal.
 - [ ] Calibrate tile visuals for Finder readability.
 - [ ] Run daily-use desktop validation.

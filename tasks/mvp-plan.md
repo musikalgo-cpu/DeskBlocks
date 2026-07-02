@@ -156,15 +156,21 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Provide a minimal way to rename a block while preserving snapped size, position, and tile references.
 
 **Acceptance criteria:**
-- [ ] User can edit a block title.
-- [ ] Empty or invalid title input is handled predictably.
-- [ ] Edited titles persist after restart.
+- [x] User can edit a block title.
+- [x] Empty or invalid title input is handled predictably.
+- [x] Edited titles persist after restart.
 
 **Verification:**
-- [ ] Add core checks for title validation if validation is introduced.
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Manual rename, quit, relaunch check.
+- [x] Add core checks for title validation if validation is introduced.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Manual rename, quit, relaunch check.
+
+**Implementation notes:**
+- Rename is available through `Edit > Rename Block...`, block-title double-click, and the block context menu.
+- Empty or whitespace-only titles are rejected by preserving the previous title.
+- Automated rename persistence is guarded with `swift run DeskBlocksPrototype --rename-smoke "Title"`.
+- The current prototype has no installed `.app` relaunch path; after quitting, relaunch is still done through `swift run DeskBlocksPrototype` until packaging/app-bundle work exists.
 
 **Dependencies:** Task 4
 
@@ -291,6 +297,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - Real Finder icon manipulation.
 - Login items, automation, accessibility permissions, and OS-level integrations.
 - Packaging, signing, notarization, and distribution.
+- Installed `.app` relaunch behavior; the current prototype is relaunched through `swift run DeskBlocksPrototype`.
 - Multi-monitor validation until a second display is available.
 
 ## Open Questions

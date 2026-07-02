@@ -109,6 +109,16 @@ final class DeskBlockView: NSView {
             needsDisplay = true
         }
     }
+    var requestRename: ((DeskBlockID) -> Void)?
+
+    private var titleRect: NSRect {
+        NSRect(
+            x: PrototypeGeometry.padding,
+            y: PrototypeGeometry.padding,
+            width: bounds.width - PrototypeGeometry.padding * 2,
+            height: PrototypeGeometry.titleHeight
+        )
+    }
 
     init(state: DeskBlockState) {
         self.state = state
@@ -120,6 +130,31 @@ final class DeskBlockView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        let eventLocation = convert(event.locationInWindow, from: nil)
+
+        if event.clickCount == 2, titleRect.contains(eventLocation) {
+            requestRename?(state.id)
+            return
+        }
+
+        super.mouseDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        let renameItem = NSMenuItem(
+            title: "Rename Block...",
+            action: #selector(renameFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+
+        renameItem.target = self
+        menu.addItem(renameItem)
+
+        return menu
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -143,13 +178,6 @@ final class DeskBlockView: NSView {
     }
 
     private func drawTitle() {
-        let titleRect = NSRect(
-            x: PrototypeGeometry.padding,
-            y: PrototypeGeometry.padding,
-            width: bounds.width - PrototypeGeometry.padding * 2,
-            height: PrototypeGeometry.titleHeight
-        )
-
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineBreakMode = .byTruncatingTail
 
@@ -163,6 +191,10 @@ final class DeskBlockView: NSView {
             in: titleRect.insetBy(dx: 2, dy: 7),
             withAttributes: attributes
         )
+    }
+
+    @objc private func renameFromContextMenu(_ sender: Any?) {
+        requestRename?(state.id)
     }
 
     private func drawTileGrid() {
@@ -213,6 +245,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         renderAllBlockWindows()
         store.save(state)
 
+        if let renameSmokeTitle = commandLineValue(after: "--rename-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.rename(blockID: blockID, to: renameSmokeTitle)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--close-smoke") {
             DispatchQueue.main.async { [weak self] in
                 self?.windowsByBlockID.values.first?.close()
@@ -221,6 +266,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
             }
         }
+    }
+
+    private func commandLineValue(after flag: String) -> String? {
+        guard let flagIndex = CommandLine.arguments.firstIndex(of: flag) else {
+            return nil
+        }
+
+        let valueIndex = CommandLine.arguments.index(after: flagIndex)
+
+        guard valueIndex < CommandLine.arguments.endIndex else {
+            return nil
+        }
+
+        return CommandLine.arguments[valueIndex]
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -285,10 +344,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appMenu = NSMenu()
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
+        let editMenuItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
         let newBlockItem = NSMenuItem(
             title: "New Block",
             action: #selector(createNewBlock(_:)),
             keyEquivalent: "n"
+        )
+        let renameBlockItem = NSMenuItem(
+            title: "Rename Block...",
+            action: #selector(renameSelectedBlock(_:)),
+            keyEquivalent: ""
         )
 
         appMenu.addItem(
@@ -304,8 +370,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         fileMenu.addItem(newBlockItem)
         fileMenuItem.submenu = fileMenu
 
+        renameBlockItem.target = self
+        editMenu.addItem(renameBlockItem)
+        editMenuItem.submenu = editMenu
+
         mainMenu.addItem(appMenuItem)
         mainMenu.addItem(fileMenuItem)
+        mainMenu.addItem(editMenuItem)
         NSApplication.shared.mainMenu = mainMenu
     }
 
@@ -332,6 +403,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let minimumContentSize = PrototypeGeometry.metrics.contentSize(columns: 1, rows: 1)
         let minimumFrameSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
         let blockView = DeskBlockView(state: block)
+        blockView.requestRename = { [weak self] blockID in
+            self?.showRenameDialog(for: blockID)
+        }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
         window.title = block.title
@@ -370,6 +444,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             rows: 3,
             tileReferences: []
         )
+    }
+
+    @objc private func renameSelectedBlock(_ sender: Any?) {
+        guard
+            let keyWindow = NSApplication.shared.keyWindow,
+            let blockID = blockID(for: keyWindow)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        showRenameDialog(for: blockID)
+    }
+
+    private func showRenameDialog(for blockID: DeskBlockID) {
+        guard
+            let block = state.block(id: blockID),
+            let window = windowsByBlockID[blockID]
+        else {
+            return
+        }
+
+        let alert = NSAlert()
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+
+        alert.messageText = "Rename Block"
+        alert.informativeText = "Enter a new block title."
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        input.stringValue = block.title
+        input.selectText(nil)
+        alert.accessoryView = input
+
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn else {
+                return
+            }
+
+            self?.rename(blockID: blockID, to: input.stringValue)
+        }
+    }
+
+    private func rename(blockID: DeskBlockID, to proposedTitle: String) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let renamedBlock = currentBlock.renamed(to: proposedTitle)
+
+        guard renamedBlock != currentBlock else {
+            NSSound.beep()
+            return
+        }
+
+        state = state.updating(block: renamedBlock)
+        blockViewsByBlockID[blockID]?.state = renamedBlock
+        windowsByBlockID[blockID]?.title = renamedBlock.title
+        store.save(state)
     }
 
     private func blockID(for window: NSWindow) -> DeskBlockID? {

@@ -168,6 +168,8 @@ Current code already covers:
 - Prototype rendering can show multiple persisted blocks as separate AppKit windows.
 - `File > New Block` is wired to create a default snapped block with a unique ID.
 - Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
+- Title editing preserves block identity, geometry, tile references, and persisted state.
+- Rename behavior is guarded by `swift run DeskBlocksPrototype --rename-smoke "Title"`.
 
 Current feasibility evidence covers:
 
@@ -180,8 +182,8 @@ Current code still needs future evidence for:
 
 - Multi-monitor behavior when a second display is available.
 - Daily-use validation of the current `desktopIconWindow + 1` window level.
-- Title editing.
 - Block removal.
+- Installed `.app` relaunch behavior; the current prototype is relaunched through SwiftPM.
 
 ## When To Update This Model
 

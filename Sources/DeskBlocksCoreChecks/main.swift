@@ -281,6 +281,27 @@ private func testDeskBlocksStateAppendsAndUpdatesBlocksByID() {
     check(updated.block(id: addedBlock.id) == updatedBlock, "expected matching block to update by ID")
 }
 
+private func testDeskBlockStateRenamesWithTrimmedTitle() {
+    let state = DeskBlockState.prototypeDefault()
+
+    let renamed = state.renamed(to: "  Projects  ")
+
+    check(renamed.title == "Projects", "expected title to be trimmed")
+    check(renamed.id == state.id, "expected ID to survive title edit")
+    check(renamed.frame == state.frame, "expected frame to survive title edit")
+    check(renamed.columns == state.columns, "expected columns to survive title edit")
+    check(renamed.rows == state.rows, "expected rows to survive title edit")
+    check(renamed.tileReferences == state.tileReferences, "expected tile references to survive title edit")
+}
+
+private func testDeskBlockStateIgnoresEmptyRenamedTitle() {
+    let state = DeskBlockState.prototypeDefault()
+
+    let renamed = state.renamed(to: "   ")
+
+    check(renamed == state, "expected empty title edit to keep existing state")
+}
+
 testPrototypeMetricsProduceInitialFourByThreeBlockSize()
 testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
@@ -294,5 +315,7 @@ testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
 testDeskBlocksStateSnapsEveryBlockAndPreservesIDs()
 testDeskBlocksStateRoundTripsThroughJSON()
 testDeskBlocksStateAppendsAndUpdatesBlocksByID()
+testDeskBlockStateRenamesWithTrimmedTitle()
+testDeskBlockStateIgnoresEmptyRenamedTitle()
 
 print("DeskBlocksCoreChecks passed")
