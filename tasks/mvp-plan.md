@@ -201,7 +201,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - [x] Run `swift build`.
 - [x] Automated remove smoke check with `swift run DeskBlocksPrototype --remove-smoke`.
 - [x] Automated last-block removal check confirms intentionally empty persisted state stays empty after launch.
-- [ ] Manual remove, quit, relaunch check.
+- [x] Manual remove, quit, relaunch check.
 
 **Implementation notes:**
 - Removal is available through `Edit > Remove Block...` and the block context menu.
@@ -220,7 +220,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 
 ## Checkpoint: Usable MVP Blocks
 
-- [ ] User can create, rename, move, resize, remove, quit, and relaunch.
+- [x] User can create, rename, move, resize, remove, quit, and relaunch.
 - [x] Current create/move/resize state restores correctly.
 - [x] Manual desktop behavior remains acceptable with multiple blocks.
 - [ ] `references/definition-of-done.md` is satisfied for implemented slices.

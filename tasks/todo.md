@@ -44,7 +44,7 @@
 - [x] Render multiple blocks as AppKit windows.
 - [x] Add minimal block creation.
 - [x] Add title editing.
-- [ ] Add block removal.
+- [x] Add block removal.
 - [ ] Calibrate tile visuals for Finder readability.
 - [ ] Run daily-use desktop validation.
 - [ ] Complete MVP review gate.
