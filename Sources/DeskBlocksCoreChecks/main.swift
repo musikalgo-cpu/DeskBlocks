@@ -79,6 +79,7 @@ private func testTileSizeRemainsUnchangedAcrossSnapping() {
 private func testDeskBlockStateKeepsFutureTileReferencesInTheModel() {
     let state = DeskBlockState.prototypeDefault()
 
+    check(state.id == .prototype, "expected prototype block ID")
     check(state.title == "DeskBlocks Prototype", "expected prototype title")
     check(state.columns == 4, "expected default columns")
     check(state.rows == 3, "expected default rows")
@@ -107,6 +108,7 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
     )
 
     check(snapped.frame.origin == BlockPoint(x: 30, y: 40), "expected updated origin")
+    check(snapped.id == state.id, "expected block ID to survive snapping")
     check(snapped.columns == 5, "expected snapped columns")
     check(snapped.rows == 3, "expected rows to remain unchanged")
     check(snapped.tileReferences == state.tileReferences, "expected tile references to survive snapping")
@@ -130,6 +132,126 @@ private func testDeskBlockStateRoundTripsThroughJSON() {
     }
 }
 
+private func testDeskBlockStateDecodesLegacyJSONWithoutID() {
+    let legacyJSON = """
+    {
+      "title": "Legacy Prototype",
+      "frame": {
+        "origin": { "x": 11, "y": 22 },
+        "size": { "width": 408, "height": 322 }
+      },
+      "columns": 4,
+      "rows": 3,
+      "tileReferences": []
+    }
+    """
+
+    do {
+        let decoded = try JSONDecoder().decode(DeskBlockState.self, from: Data(legacyJSON.utf8))
+
+        check(decoded.id == .prototype, "expected legacy state to default to prototype block ID")
+        check(decoded.title == "Legacy Prototype", "expected legacy title to decode")
+        check(decoded.columns == 4, "expected legacy columns to decode")
+        check(decoded.rows == 3, "expected legacy rows to decode")
+    } catch {
+        fputs("FAIL: expected legacy JSON without ID to decode, got \(error)\n", stderr)
+        Foundation.exit(1)
+    }
+}
+
+private func testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs() {
+    let metrics = TileGridMetrics.prototype
+    let state = DeskBlocksState(blocks: [
+        DeskBlockState(
+            id: DeskBlockID("block-a"),
+            title: "Work",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 10, y: 20),
+                size: metrics.contentSize(columns: 2, rows: 2)
+            ),
+            columns: 2,
+            rows: 2
+        ),
+        DeskBlockState(
+            id: DeskBlockID("block-b"),
+            title: "Personal",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 300, y: 200),
+                size: metrics.contentSize(columns: 3, rows: 1)
+            ),
+            columns: 3,
+            rows: 1
+        )
+    ])
+
+    check(state.blocks.count == 2, "expected two blocks")
+    check(state.blocks[0].id == DeskBlockID("block-a"), "expected first stable ID")
+    check(state.blocks[1].id == DeskBlockID("block-b"), "expected second stable ID")
+}
+
+private func testDeskBlocksStateSnapsEveryBlockAndPreservesIDs() {
+    let metrics = TileGridMetrics.prototype
+    let state = DeskBlocksState(blocks: [
+        DeskBlockState(
+            id: DeskBlockID("wide"),
+            title: "Wide",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 10, y: 20),
+                size: BlockSize(width: 1000, height: metrics.contentSize(columns: 1, rows: 1).height)
+            ),
+            columns: 1,
+            rows: 1
+        ),
+        DeskBlockState(
+            id: DeskBlockID("small"),
+            title: "Small",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 30, y: 40),
+                size: BlockSize(width: 1, height: 1)
+            ),
+            columns: 0,
+            rows: 0
+        )
+    ])
+
+    let snapped = state.snapped(metrics: metrics)
+
+    check(snapped.blocks[0].id == DeskBlockID("wide"), "expected first ID to survive snapping")
+    check(snapped.blocks[0].columns > 1, "expected first block to snap to multiple columns")
+    check(snapped.blocks[1].id == DeskBlockID("small"), "expected second ID to survive snapping")
+    check(snapped.blocks[1].columns == 1, "expected second block to normalize to minimum columns")
+    check(snapped.blocks[1].rows == 1, "expected second block to normalize to minimum rows")
+}
+
+private func testDeskBlocksStateRoundTripsThroughJSON() {
+    let state = DeskBlocksState(blocks: [
+        DeskBlockState.prototypeDefault(),
+        DeskBlockState(
+            id: DeskBlockID("archive"),
+            title: "Archive",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 500, y: 120),
+                size: TileGridMetrics.prototype.contentSize(columns: 2, rows: 4)
+            ),
+            columns: 2,
+            rows: 4,
+            tileReferences: [
+                TileReference(id: "tile-archive", displayName: "Archive", folderReference: "bookmark-placeholder")
+            ]
+        )
+    ])
+
+    do {
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(DeskBlocksState.self, from: data)
+
+        check(decoded == state, "expected multiple-block state to round-trip through JSON")
+    } catch {
+        fputs("FAIL: expected multiple-block JSON round-trip, got \(error)\n", stderr)
+        Foundation.exit(1)
+    }
+}
+
 testPrototypeMetricsProduceInitialFourByThreeBlockSize()
 testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
@@ -138,5 +260,9 @@ testTileSizeRemainsUnchangedAcrossSnapping()
 testDeskBlockStateKeepsFutureTileReferencesInTheModel()
 testDeskBlockStateSnapsProposedSizeAndPreservesReferences()
 testDeskBlockStateRoundTripsThroughJSON()
+testDeskBlockStateDecodesLegacyJSONWithoutID()
+testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
+testDeskBlocksStateSnapsEveryBlockAndPreservesIDs()
+testDeskBlocksStateRoundTripsThroughJSON()
 
 print("DeskBlocksCoreChecks passed")

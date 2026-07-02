@@ -153,13 +153,17 @@ Implementation should make these states impossible or reject/normalize them imme
 
 Current code already covers:
 
+- `DeskBlockID` for stable block identity.
 - `BlockPoint`, `BlockSize`, `BlockFrame`.
 - `TileGridMetrics`.
 - `DeskBlockState`.
+- `DeskBlocksState` for multiple blocks.
 - `TileReference` placeholder model.
 - Core snapping through `TileGridMetrics.snappedSize`.
 - State normalization through `DeskBlockState.snapped`.
+- Multiple-block normalization through `DeskBlocksState.snapped`.
 - JSON round-trip checks through `DeskBlocksCoreChecks`.
+- Legacy single-block JSON without a block ID decodes with the prototype block ID.
 
 Current feasibility evidence covers:
 

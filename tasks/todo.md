@@ -39,7 +39,7 @@
 
 - [x] Create MVP implementation plan.
 - [x] Decide MVP block creation UX.
-- [ ] Model multiple blocks in core.
+- [x] Model multiple blocks in core.
 - [ ] Persist multiple blocks.
 - [ ] Render multiple blocks as AppKit windows.
 - [ ] Add minimal block creation.

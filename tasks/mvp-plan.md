@@ -49,14 +49,14 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Extend the core state from one block toward a collection of blocks with stable identifiers, valid frames, titles, snapped sizes, and future tile references.
 
 **Acceptance criteria:**
-- [ ] Core state can represent multiple blocks with stable IDs.
-- [ ] Every block remains snapped through `TileGridMetrics`.
-- [ ] Invalid loaded block sizes are normalized before rendering.
+- [x] Core state can represent multiple blocks with stable IDs.
+- [x] Every block remains snapped through `TileGridMetrics`.
+- [x] Invalid loaded block sizes are normalized before rendering.
 
 **Verification:**
-- [ ] Add executable checks to `DeskBlocksCoreChecks`.
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
+- [x] Add executable checks to `DeskBlocksCoreChecks`.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
 
 **Dependencies:** None
 
@@ -93,7 +93,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 
 ## Checkpoint: Core MVP State
 
-- [ ] Multiple-block core checks pass.
+- [x] Multiple-block core checks pass.
 - [ ] Persistence checks pass.
 - [ ] No Finder file operations were introduced.
 - [ ] `docs/models/deskblocks-state-model.md` matches the implemented lifecycle.

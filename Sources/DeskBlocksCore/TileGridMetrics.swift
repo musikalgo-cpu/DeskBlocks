@@ -28,6 +28,17 @@ public struct BlockFrame: Codable, Equatable, Sendable {
     }
 }
 
+public struct DeskBlockID: Codable, Equatable, Hashable, Sendable {
+    public let rawValue: String
+
+    public static let prototype = DeskBlockID("prototype-block")
+
+    public init(_ rawValue: String) {
+        precondition(!rawValue.isEmpty, "DeskBlockID must not be empty")
+        self.rawValue = rawValue
+    }
+}
+
 public struct TileReference: Codable, Equatable, Sendable {
     public let id: String
     public let displayName: String
@@ -41,6 +52,7 @@ public struct TileReference: Codable, Equatable, Sendable {
 }
 
 public struct DeskBlockState: Codable, Equatable, Sendable {
+    public let id: DeskBlockID
     public let title: String
     public let frame: BlockFrame
     public let columns: Int
@@ -48,17 +60,50 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     public let tileReferences: [TileReference]
 
     public init(
+        id: DeskBlockID = .prototype,
         title: String,
         frame: BlockFrame,
         columns: Int,
         rows: Int,
         tileReferences: [TileReference] = []
     ) {
+        self.id = id
         self.title = title
         self.frame = frame
         self.columns = columns
         self.rows = rows
         self.tileReferences = tileReferences
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case frame
+        case columns
+        case rows
+        case tileReferences
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decodeIfPresent(DeskBlockID.self, forKey: .id) ?? .prototype
+        title = try container.decode(String.self, forKey: .title)
+        frame = try container.decode(BlockFrame.self, forKey: .frame)
+        columns = try container.decode(Int.self, forKey: .columns)
+        rows = try container.decode(Int.self, forKey: .rows)
+        tileReferences = try container.decodeIfPresent([TileReference].self, forKey: .tileReferences) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(frame, forKey: .frame)
+        try container.encode(columns, forKey: .columns)
+        try container.encode(rows, forKey: .rows)
+        try container.encode(tileReferences, forKey: .tileReferences)
     }
 
     public static func prototypeDefault(
@@ -69,6 +114,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         let rows = 3
 
         return DeskBlockState(
+            id: .prototype,
             title: "DeskBlocks Prototype",
             frame: BlockFrame(
                 origin: origin,
@@ -88,6 +134,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         let snapped = metrics.snappedSize(for: proposedSize ?? frame.size)
 
         return DeskBlockState(
+            id: id,
             title: title,
             frame: BlockFrame(
                 origin: origin ?? frame.origin,
@@ -97,6 +144,33 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             rows: snapped.rows,
             tileReferences: tileReferences
         )
+    }
+}
+
+public struct DeskBlocksState: Codable, Equatable, Sendable {
+    public let blocks: [DeskBlockState]
+
+    public init(blocks: [DeskBlockState]) {
+        self.blocks = blocks
+    }
+
+    public static func prototypeDefault(
+        metrics: TileGridMetrics = .prototype,
+        origin: BlockPoint = BlockPoint(x: 240, y: 240)
+    ) -> DeskBlocksState {
+        DeskBlocksState(blocks: [
+            DeskBlockState.prototypeDefault(metrics: metrics, origin: origin)
+        ])
+    }
+
+    public func snapped(metrics: TileGridMetrics) -> DeskBlocksState {
+        DeskBlocksState(blocks: blocks.map { block in
+            block.snapped(metrics: metrics)
+        })
+    }
+
+    public func block(id: DeskBlockID) -> DeskBlockState? {
+        blocks.first { $0.id == id }
     }
 }
 
