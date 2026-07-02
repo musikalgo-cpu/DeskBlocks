@@ -26,10 +26,10 @@
 - [x] Implement desktop-overlay prototype slice.
 - [x] Manually check desktop layer behavior.
 - [x] Check Finder icon interaction.
-- [ ] Check Mission Control behavior.
-- [ ] Check Spaces behavior.
-- [ ] Check multi-monitor behavior if available.
-- [ ] Check full-screen app behavior.
+- [x] Check Mission Control behavior.
+- [x] Check Spaces behavior.
+- [x] Check multi-monitor behavior if available.
+- [x] Check full-screen app behavior.
 - [x] Note required permissions or OS settings for the current overlay candidate.
 - [x] Record current limitations and recommendation.
 - [ ] Write follow-up ADR for the stack decision.

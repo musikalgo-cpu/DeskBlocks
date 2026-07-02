@@ -2,7 +2,7 @@
 
 ## Status
 
-Partial. Automated and code-level checks were completed. Manual desktop behavior checks still need human visual evaluation.
+Complete for the current stack-feasibility decision. Automated, code-level, and primary manual desktop behavior checks were completed. Display sleep/wake and display scaling/resolution behavior are intentionally deferred because they are not required before the stack ADR.
 
 ## Test Run Metadata
 
@@ -14,8 +14,8 @@ Partial. Automated and code-level checks were completed. Manual desktop behavior
   - `swift build`
   - `swift run DeskBlocksCoreChecks`
   - `swift run DeskBlocksPrototype`
-- Prototype commit or file snapshot: no Git repository yet
-- Tester: Codex for automated checks; human visual desktop checks pending
+- Prototype commit or file snapshot: `07e56d2 Document overlay feasibility checkpoint` plus current working-tree manual-check notes
+- Tester: Codex for automated checks; human visual desktop checks by user
 
 ## Automated Evidence
 
@@ -46,7 +46,7 @@ The current AppKit prototype now has a first desktop-overlay candidate configura
 - The current candidate window level is `CGWindowLevelForKey(.desktopIconWindow) + 1`, represented as `NSWindow.Level`.
 - The window collection behavior is `.canJoinAllSpaces`, `.stationary`, `.ignoresCycle`, and `.fullScreenAuxiliary`.
 
-This means the prototype now has code-level support for a desktop-adjacent overlay candidate, and candidate 2 passed the first desktop/Finder interaction check. It still needs evaluation in Spaces, Mission Control, full-screen apps, and any multi-monitor setup before the stack decision.
+This means the prototype now has code-level support for a desktop-adjacent overlay candidate, and candidate 2 passed the first desktop/Finder interaction check. It has also passed the first Spaces and full-screen app checks. Mission Control behavior is acceptable with a documented limitation: DeskBlocks does not enter Mission Control as a normal managed window and remains on the desktop while other windows move forward.
 
 ## Manual Checks Still Required
 
@@ -57,27 +57,24 @@ This means the prototype now has code-level support for a desktop-adjacent overl
 | Block can be resized by pointer interaction. | PASS | Candidate 2 can be resized. |
 | Resize snapping feels stable and visible. | PASS | User reported resize test as pass for candidate 2. |
 | Finder icons remain usable around the block. | PASS | User reported candidate 2 is not too intrusive relative to Finder icons. |
-| Mission Control behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
-| Spaces behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
-| Full-screen app behavior is acceptable. | BLOCKED | Needs human visual confirmation. |
-| Multi-monitor behavior is acceptable, if available. | BLOCKED | Needs human visual confirmation. |
+| Mission Control behavior is acceptable. | PASS | DeskBlocks does not enter Mission Control; other windows move forward and DeskBlocks remains on the desktop. Acceptable for feasibility, but this limitation must be kept in the stack ADR. |
+| Spaces behavior is acceptable. | PASS | User reported Desktop/Spaces switching as pass. |
+| Full-screen app behavior is acceptable. | PASS | User reported behavior while another app is full-screen as pass. |
+| Multi-monitor behavior is acceptable, if available. | N/A | No second monitor is available in the current test setup. |
 
 ## Limitations Found
 
-- The current window-level choice has passed the first desktop/Finder interaction check, but has not been tested in Mission Control, Spaces, full-screen apps, or multi-monitor setups.
-- Spaces, Mission Control, full-screen app behavior, and multi-monitor behavior have not been proven.
+- Mission Control does not treat DeskBlocks as a normal managed window. This appears acceptable for the product direction, but must be documented as a stack-decision limitation.
+- Multi-monitor behavior has not been tested because no second monitor is available.
+- Display sleep/wake and display scaling/resolution behavior were not tested and are intentionally deferred beyond the stack ADR.
 - The resource observation is a single smoke sample, not a reliable performance benchmark.
-- The project is not yet a Git repository, so there is no commit-based rollback point.
 
 ## Recommendation
 
-Continue with Swift/AppKit into the remaining manual evaluation of Mission Control, Spaces, full-screen apps, and multi-monitor behavior before writing the final stack ADR.
+Continue with Swift/AppKit into the stack-decision ADR.
 
 Next human check should specifically test:
 
-- transparent or visually lightweight window style
-- candidate `NSWindow.Level`
-- Spaces and Mission Control behavior
-- whether the block can remain useful without disrupting normal desktop use
+- no additional manual check is required before the stack ADR
 
-Do not accept Swift/AppKit as the production stack until that desktop-layer slice is manually evaluated.
+Do not accept Swift/AppKit as the production stack until the Mission Control limitation is explicitly carried into the stack ADR.
