@@ -22,8 +22,8 @@ Primary success:
 - Swift/AppKit is accepted as the MVP app stack by `docs/decisions/ADR-002-accept-swift-appkit-for-mvp.md`.
 - The current implementation uses Swift/AppKit via Swift Package Manager.
 - Prototype source exists under `Sources/DeskBlocksPrototype/` and `Sources/DeskBlocksCore/`.
-- Build, run, and core geometry check commands exist for the prototype.
-- No lint or packaging commands exist yet.
+- Build, run, core geometry check, and local app-bundle packaging commands exist for the prototype.
+- No lint command exists yet.
 - Current repository content is project guidance, copied reference skills, reference checklists, and this spec.
 
 ## Product Model
@@ -181,6 +181,8 @@ Major future stack or architecture changes must be recorded in `docs/decisions/`
 
 Folder references use bookmark-backed persistence as accepted in `docs/decisions/ADR-003-use-bookmarks-for-folder-references.md`. Plain paths are not the primary identity for folder tiles.
 
+Local private app packaging uses an unsigned app bundle as accepted in `docs/decisions/ADR-004-local-unsigned-app-bundle.md`.
+
 ## Commands
 
 Current prototype commands:
@@ -188,10 +190,11 @@ Current prototype commands:
 - Build: `swift build`
 - Run: `swift run DeskBlocksPrototype`
 - Check core geometry: `swift run DeskBlocksCoreChecks`
+- Build local `.app`: `scripts/build-local-app.sh`
 - Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
 - Smoke folder-reference removal: `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`
 
-No lint or packaging command exists yet.
+No lint command exists yet.
 
 The current Command Line Tools setup does not provide an importable XCTest module for SwiftPM tests. Until that changes, core grid and snapping checks run through `swift run DeskBlocksCoreChecks`.
 
@@ -216,6 +219,8 @@ Current intended structure:
 - `skills/` - copied local reference workflows.
 - `references/` - copied local checklists.
 - `Package.swift` - SwiftPM package for the Swift/AppKit feasibility prototype.
+- `scripts/build-local-app.sh` - builds the private local `dist/DeskBlocks.app` bundle.
+- `packaging/Info.plist` - metadata template for the private local app bundle.
 - `Sources/DeskBlocksCore/` - pure Swift geometry and snapping logic.
 - `Sources/DeskBlocksCoreChecks/` - executable checks for grid and snapping invariants.
 - `Sources/DeskBlocksPrototype/` - current Swift/AppKit MVP prototype source.
