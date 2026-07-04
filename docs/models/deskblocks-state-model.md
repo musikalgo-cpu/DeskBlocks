@@ -139,6 +139,7 @@ Folder-reference invariants:
 - Dropping a folder must not move the real folder.
 - Dropping a top-level Desktop folder follows the same reference-only rule.
 - Removing a tile reference must not delete or move the real folder.
+- Opening a tile reference resolves the bookmark first and may fall back to the last known path when available.
 
 ## Impossible States
 
@@ -183,6 +184,9 @@ Current code already covers:
 - Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.
 - Folder references can be placed from a tile context menu through a native folder picker.
 - Folder reference bookmark creation is guarded by `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`.
+- Referenced folders can be opened from a tile context menu or by double-clicking a referenced tile.
+- Folder references can be removed from a tile context menu without removing the tile or changing Finder files.
+- Folder reference removal is guarded by `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`.
 
 Current feasibility evidence covers:
 

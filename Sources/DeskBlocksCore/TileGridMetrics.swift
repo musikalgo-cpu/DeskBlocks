@@ -262,6 +262,24 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         )
     }
 
+    public func removingTileReference(at tileIndex: Int) -> DeskBlockState {
+        guard tileReference(at: tileIndex) != nil else {
+            return self
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: tileReferences.filter { reference in
+                reference.tileIndex != tileIndex
+            }
+        )
+    }
+
     private func withTileCount(_ newTileCount: Int, metrics: TileGridMetrics) -> DeskBlockState {
         let safeTileCount = max(1, newTileCount)
         let currentCapacity = max(1, columns * rows)

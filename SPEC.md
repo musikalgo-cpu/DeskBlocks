@@ -66,8 +66,10 @@ When a folder reference is placed in a tile:
 - DeskBlocks stores bookmark-backed folder reference data, with the last known path kept only as secondary fallback/debug metadata.
 - DeskBlocks stores the tile index for the reference so a folder can occupy a specific visible tile slot.
 - DeskBlocks renders the folder as a tile item inside the block.
+- DeskBlocks can open the referenced folder through the system workspace.
 - Moving the block moves the rendered tile item with the block.
 - Resizing the block may change which tile slots are visible or available, but must not scale the tile item.
+- Removing a folder reference clears only the DeskBlocks tile reference.
 - This reference-only rule also applies to top-level folders that are located directly on the Desktop.
 - DeskBlocks must not move, rename, copy, delete, or reorganize the underlying Finder folder as part of this behavior.
 
@@ -129,6 +131,7 @@ Required MVP capabilities:
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
 - Place a folder reference into a visible tile through a minimal native interaction.
+- Open and remove a folder reference from a visible tile without changing the Finder folder.
 - Provide a minimal way to edit a block title and remove a block.
 
 Feasibility prototype capabilities:
@@ -179,6 +182,7 @@ Current prototype commands:
 - Run: `swift run DeskBlocksPrototype`
 - Check core geometry: `swift run DeskBlocksCoreChecks`
 - Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
+- Smoke folder-reference removal: `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`
 
 No lint or packaging command exists yet.
 

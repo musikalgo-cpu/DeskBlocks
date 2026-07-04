@@ -13,6 +13,8 @@ final class DeskBlockView: NSView {
     var requestAddTile: ((DeskBlockID) -> Void)?
     var requestDeleteTile: ((DeskBlockID) -> Void)?
     var requestChooseFolder: ((DeskBlockID, Int) -> Void)?
+    var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
+    var requestRemoveFolderReference: ((DeskBlockID, Int) -> Void)?
 
     private var titleRect: NSRect {
         NSRect(
@@ -42,6 +44,11 @@ final class DeskBlockView: NSView {
             return
         }
 
+        if event.clickCount == 2, let tileIndex = tileIndex(at: eventLocation), state.tileReference(at: tileIndex) != nil {
+            requestOpenFolder?(state.id, tileIndex)
+            return
+        }
+
         super.mouseDown(with: event)
     }
 
@@ -49,14 +56,25 @@ final class DeskBlockView: NSView {
         let menu = NSMenu()
         let eventLocation = convert(event.locationInWindow, from: nil)
         let clickedTileIndex = tileIndex(at: eventLocation)
+        let clickedTileReference = clickedTileIndex.flatMap { state.tileReference(at: $0) }
         let renameItem = NSMenuItem(
             title: "Rename Block...",
             action: #selector(renameFromContextMenu(_:)),
             keyEquivalent: ""
         )
         let chooseFolderItem = NSMenuItem(
-            title: clickedTileIndex.flatMap { state.tileReference(at: $0) } == nil ? "Choose Folder..." : "Replace Folder...",
+            title: clickedTileReference == nil ? "Choose Folder..." : "Replace Folder...",
             action: #selector(chooseFolderFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let openFolderItem = NSMenuItem(
+            title: "Open Folder",
+            action: #selector(openFolderFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let removeFolderReferenceItem = NSMenuItem(
+            title: "Remove Folder Reference",
+            action: #selector(removeFolderReferenceFromContextMenu(_:)),
             keyEquivalent: ""
         )
         let addTileItem = NSMenuItem(
@@ -78,13 +96,23 @@ final class DeskBlockView: NSView {
         renameItem.target = self
         chooseFolderItem.target = self
         chooseFolderItem.representedObject = clickedTileIndex
+        openFolderItem.target = self
+        openFolderItem.representedObject = clickedTileIndex
+        removeFolderReferenceItem.target = self
+        removeFolderReferenceItem.representedObject = clickedTileIndex
         addTileItem.target = self
         deleteTileItem.target = self
         removeItem.target = self
         menu.addItem(renameItem)
         menu.addItem(.separator())
         if clickedTileIndex != nil {
+            if clickedTileReference != nil {
+                menu.addItem(openFolderItem)
+            }
             menu.addItem(chooseFolderItem)
+            if clickedTileReference != nil {
+                menu.addItem(removeFolderReferenceItem)
+            }
             menu.addItem(.separator())
         }
         menu.addItem(addTileItem)
@@ -154,6 +182,22 @@ final class DeskBlockView: NSView {
         }
 
         requestChooseFolder?(state.id, tileIndex)
+    }
+
+    @objc private func openFolderFromContextMenu(_ sender: NSMenuItem) {
+        guard let tileIndex = sender.representedObject as? Int else {
+            return
+        }
+
+        requestOpenFolder?(state.id, tileIndex)
+    }
+
+    @objc private func removeFolderReferenceFromContextMenu(_ sender: NSMenuItem) {
+        guard let tileIndex = sender.representedObject as? Int else {
+            return
+        }
+
+        requestRemoveFolderReference?(state.id, tileIndex)
     }
 
     private func drawTileGrid() {

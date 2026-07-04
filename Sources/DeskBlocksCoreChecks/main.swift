@@ -349,6 +349,40 @@ private func testDeskBlockStateDropsReferencesWhenTileIsRemoved() {
     check(updated.tileReferences.isEmpty, "expected reference in removed tile slot to be dropped")
 }
 
+private func testDeskBlockStateRemovesFolderReferenceWithoutRemovingTile() {
+    let state = DeskBlockState(
+        title: "Work",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: TileGridMetrics.prototype.contentSize(columns: 2, rows: 2)
+        ),
+        columns: 2,
+        rows: 2,
+        tileReferences: [
+            TileReference(
+                id: "projects",
+                tileIndex: 2,
+                displayName: "Projects",
+                folderReference: FolderReference(bookmarkDataBase64: "projects-bookmark", lastKnownPath: "/projects")
+            )
+        ]
+    )
+
+    let updated = state.removingTileReference(at: 2)
+
+    check(updated.tileCount == state.tileCount, "expected removing reference to preserve tile count")
+    check(updated.visibleTileCount == state.visibleTileCount, "expected removing reference to preserve visible tiles")
+    check(updated.tileReferences.isEmpty, "expected reference to be removed")
+}
+
+private func testDeskBlockStateIgnoresRemovingMissingFolderReference() {
+    let state = DeskBlockState.prototypeDefault()
+
+    let updated = state.removingTileReference(at: 2)
+
+    check(updated == state, "expected missing reference removal to leave state unchanged")
+}
+
 private func testDeskBlockStateRoundTripsThroughJSON() {
     let state = DeskBlockState.prototypeDefault().snapped(
         metrics: .prototype,
@@ -635,6 +669,8 @@ testDeskBlockStatePlacesFolderReferenceAtTileIndex()
 testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount()
 testDeskBlockStateKeepsOnlyOneReferencePerTileIndex()
 testDeskBlockStateDropsReferencesWhenTileIsRemoved()
+testDeskBlockStateRemovesFolderReferenceWithoutRemovingTile()
+testDeskBlockStateIgnoresRemovingMissingFolderReference()
 testDeskBlockStateRoundTripsThroughJSON()
 testDeskBlockStateDecodesLegacyJSONWithoutID()
 testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()

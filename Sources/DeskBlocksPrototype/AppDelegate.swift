@@ -101,6 +101,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if CommandLine.arguments.contains("--remove-folder-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                let tileIndex = self?.commandLineInt(after: "--tile-index") ?? 0
+                self?.removeFolderReference(from: blockID, at: tileIndex)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--close-smoke") {
             DispatchQueue.main.async { [weak self] in
                 self?.windowsByBlockID.values.first?.close()
@@ -292,6 +306,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         blockView.requestChooseFolder = { [weak self] blockID, tileIndex in
             self?.showChooseFolderPanel(for: blockID, tileIndex: tileIndex)
+        }
+        blockView.requestOpenFolder = { [weak self] blockID, tileIndex in
+            self?.openFolderReference(in: blockID, at: tileIndex)
+        }
+        blockView.requestRemoveFolderReference = { [weak self] blockID, tileIndex in
+            self?.removeFolderReference(from: blockID, at: tileIndex)
         }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
@@ -587,6 +607,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             fputs("DeskBlocksPrototype: failed to create folder bookmark: \(error)\n", stderr)
             NSSound.beep()
         }
+    }
+
+    private func openFolderReference(in blockID: DeskBlockID, at tileIndex: Int) {
+        guard
+            let tileReference = state.block(id: blockID)?.tileReference(at: tileIndex),
+            let folderURL = resolvedFolderURL(for: tileReference)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        NSWorkspace.shared.open(folderURL)
+    }
+
+    private func removeFolderReference(from blockID: DeskBlockID, at tileIndex: Int) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let updatedBlock = currentBlock.removingTileReference(at: tileIndex)
+
+        guard updatedBlock != currentBlock else {
+            NSSound.beep()
+            return
+        }
+
+        update(block: updatedBlock)
+    }
+
+    private func resolvedFolderURL(for tileReference: TileReference) -> URL? {
+        guard let bookmarkData = Data(base64Encoded: tileReference.folderReference.bookmarkDataBase64) else {
+            return fallbackFolderURL(for: tileReference)
+        }
+
+        do {
+            var isStale = false
+            let resolvedURL = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+
+            return resolvedURL
+        } catch {
+            fputs("DeskBlocksPrototype: failed to resolve folder bookmark: \(error)\n", stderr)
+            return fallbackFolderURL(for: tileReference)
+        }
+    }
+
+    private func fallbackFolderURL(for tileReference: TileReference) -> URL? {
+        let path = tileReference.folderReference.lastKnownPath
+
+        guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+
+        return URL(fileURLWithPath: path, isDirectory: true)
     }
 
     private func update(block updatedBlock: DeskBlockState) {
