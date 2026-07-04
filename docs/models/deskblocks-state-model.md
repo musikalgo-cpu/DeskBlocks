@@ -41,7 +41,9 @@ The tile grid is valid only when:
 
 A tile reference is valid only when:
 
-- It points to a folder reference stored by DeskBlocks.
+- It points to a bookmark-backed folder reference stored by DeskBlocks.
+- It has a tile index inside the block's current requested tile count.
+- At most one tile reference occupies a given tile index.
 - Rendering it does not move, copy, rename, delete, or reorganize the underlying Finder folder.
 - Moving the containing block moves the rendered tile item visually with the block.
 
@@ -132,6 +134,8 @@ stateDiagram-v2
 Folder-reference invariants:
 
 - Dropping a folder creates or updates a DeskBlocks reference only.
+- The durable reference is bookmark data; the last known path is fallback/debug metadata only.
+- Dropping onto a tile stores the target tile index.
 - Dropping a folder must not move the real folder.
 - Dropping a top-level Desktop folder follows the same reference-only rule.
 - Removing a tile reference must not delete or move the real folder.
@@ -147,6 +151,8 @@ Implementation should make these states impossible or reject/normalize them imme
 - A block move that changes tile references.
 - A resize that changes tile dimensions instead of column/row counts.
 - A folder reference that implies DeskBlocks owns the real Finder folder.
+- Two folder references occupying the same tile index in the same block.
+- A folder reference whose tile index is outside the block's requested tile count.
 - A block movement that moves real Finder icons or underlying folders.
 - A magnetic placement interaction that manipulates Finder desktop icon positions.
 
@@ -159,12 +165,13 @@ Current code already covers:
 - `TileGridMetrics`.
 - `DeskBlockState`.
 - `DeskBlocksState` for multiple blocks.
-- `TileReference` placeholder model.
+- `TileReference` with explicit tile index and bookmark-backed folder reference.
 - Core snapping through `TileGridMetrics.snappedSize`.
 - State normalization through `DeskBlockState.snapped`.
 - Multiple-block normalization through `DeskBlocksState.snapped`.
 - JSON round-trip checks through `DeskBlocksCoreChecks`.
 - Legacy single-block JSON without a block ID decodes with the prototype block ID.
+- Legacy placeholder string folder references decode as bookmark references for compatibility.
 - Prototype persistence can save and restore `DeskBlocksState`.
 - Prototype rendering can show multiple persisted blocks as separate AppKit windows.
 - `File > New Block...` is wired to create a snapped block with a unique ID, user-provided title, and a near-square grid derived from total tile count.
@@ -174,6 +181,8 @@ Current code already covers:
 - Block removal preserves non-removed blocks, allows an intentionally empty state, and never affects Finder files.
 - Remove behavior is guarded by `swift run DeskBlocksPrototype --remove-smoke`.
 - Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.
+- Folder references can be placed from a tile context menu through a native folder picker.
+- Folder reference bookmark creation is guarded by `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`.
 
 Current feasibility evidence covers:
 

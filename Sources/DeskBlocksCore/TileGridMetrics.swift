@@ -41,15 +41,71 @@ public struct DeskBlockID: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+public enum FolderReferenceKind: String, Codable, Equatable, Sendable {
+    case bookmark
+}
+
+public struct FolderReference: Codable, Equatable, Sendable {
+    public let kind: FolderReferenceKind
+    public let bookmarkDataBase64: String
+    public let lastKnownPath: String
+
+    public init(
+        kind: FolderReferenceKind = .bookmark,
+        bookmarkDataBase64: String,
+        lastKnownPath: String
+    ) {
+        self.kind = kind
+        self.bookmarkDataBase64 = bookmarkDataBase64
+        self.lastKnownPath = lastKnownPath
+    }
+}
+
 public struct TileReference: Codable, Equatable, Sendable {
     public let id: String
+    public let tileIndex: Int
     public let displayName: String
-    public let folderReference: String
+    public let folderReference: FolderReference
 
-    public init(id: String, displayName: String, folderReference: String) {
+    public init(id: String, tileIndex: Int, displayName: String, folderReference: FolderReference) {
         self.id = id
+        self.tileIndex = tileIndex
         self.displayName = displayName
         self.folderReference = folderReference
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case tileIndex
+        case displayName
+        case folderReference
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        tileIndex = try container.decodeIfPresent(Int.self, forKey: .tileIndex) ?? 0
+        displayName = try container.decode(String.self, forKey: .displayName)
+
+        if let decodedReference = try? container.decode(FolderReference.self, forKey: .folderReference) {
+            folderReference = decodedReference
+        } else {
+            let legacyReference = try container.decode(String.self, forKey: .folderReference)
+            folderReference = FolderReference(
+                bookmarkDataBase64: legacyReference,
+                lastKnownPath: ""
+            )
+        }
+    }
+
+    public func placed(at newTileIndex: Int) -> TileReference {
+        TileReference(
+            id: id,
+            tileIndex: newTileIndex,
+            displayName: displayName,
+            folderReference: folderReference
+        )
     }
 }
 
@@ -84,8 +140,10 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         self.frame = frame
         self.columns = columns
         self.rows = rows
-        self.tileCount = max(1, tileCount ?? max(1, columns * rows))
-        self.tileReferences = tileReferences
+        let safeTileCount = max(1, tileCount ?? max(1, columns * rows))
+
+        self.tileCount = safeTileCount
+        self.tileReferences = Self.normalizedTileReferences(tileReferences, tileCount: safeTileCount)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -108,7 +166,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         rows = try container.decode(Int.self, forKey: .rows)
         let decodedTileCount = try container.decodeIfPresent(Int.self, forKey: .tileCount)
         tileCount = max(1, decodedTileCount ?? max(1, columns * rows))
-        tileReferences = try container.decodeIfPresent([TileReference].self, forKey: .tileReferences) ?? []
+        let decodedReferences = try container.decodeIfPresent([TileReference].self, forKey: .tileReferences) ?? []
+        tileReferences = Self.normalizedTileReferences(decodedReferences, tileCount: tileCount)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -176,6 +235,33 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         withTileCount(max(1, tileCount - 1), metrics: metrics)
     }
 
+    public func tileReference(at tileIndex: Int) -> TileReference? {
+        tileReferences.first { reference in
+            reference.tileIndex == tileIndex
+        }
+    }
+
+    public func placingTileReference(_ tileReference: TileReference, at tileIndex: Int) -> DeskBlockState {
+        guard tileIndex >= 0, tileIndex < tileCount else {
+            return self
+        }
+
+        let placedReference = tileReference.placed(at: tileIndex)
+        let nextReferences = tileReferences.filter { reference in
+            reference.tileIndex != tileIndex && reference.id != placedReference.id
+        } + [placedReference]
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: nextReferences
+        )
+    }
+
     private func withTileCount(_ newTileCount: Int, metrics: TileGridMetrics) -> DeskBlockState {
         let safeTileCount = max(1, newTileCount)
         let currentCapacity = max(1, columns * rows)
@@ -213,6 +299,33 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             tileCount: tileCount,
             tileReferences: tileReferences
         )
+    }
+
+    private static func normalizedTileReferences(
+        _ tileReferences: [TileReference],
+        tileCount: Int
+    ) -> [TileReference] {
+        var seenTileIndexes = Set<Int>()
+        var acceptedReferences: [TileReference] = []
+
+        for reference in tileReferences.reversed() {
+            guard reference.tileIndex >= 0, reference.tileIndex < tileCount else {
+                continue
+            }
+
+            guard !seenTileIndexes.contains(reference.tileIndex) else {
+                continue
+            }
+
+            seenTileIndexes.insert(reference.tileIndex)
+            acceptedReferences.append(reference)
+        }
+
+        return acceptedReferences
+            .reversed()
+            .sorted { first, second in
+                first.tileIndex < second.tileIndex
+            }
     }
 }
 

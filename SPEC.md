@@ -63,7 +63,8 @@ A future tile may contain a reference to a Finder folder. DeskBlocks should trea
 
 When a folder reference is placed in a tile:
 
-- DeskBlocks stores a durable reference to the folder path or alias-like identifier.
+- DeskBlocks stores bookmark-backed folder reference data, with the last known path kept only as secondary fallback/debug metadata.
+- DeskBlocks stores the tile index for the reference so a folder can occupy a specific visible tile slot.
 - DeskBlocks renders the folder as a tile item inside the block.
 - Moving the block moves the rendered tile item with the block.
 - Resizing the block may change which tile slots are visible or available, but must not scale the tile item.
@@ -127,6 +128,7 @@ Required MVP capabilities:
 - Persist block title, position, size, and tile count across app restarts.
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
+- Place a folder reference into a visible tile through a minimal native interaction.
 - Provide a minimal way to edit a block title and remove a block.
 
 Feasibility prototype capabilities:
@@ -167,6 +169,8 @@ The accepted stack must continue to support:
 
 Major future stack or architecture changes must be recorded in `docs/decisions/` as ADRs before implementation.
 
+Folder references use bookmark-backed persistence as accepted in `docs/decisions/ADR-003-use-bookmarks-for-folder-references.md`. Plain paths are not the primary identity for folder tiles.
+
 ## Commands
 
 Current prototype commands:
@@ -174,6 +178,7 @@ Current prototype commands:
 - Build: `swift build`
 - Run: `swift run DeskBlocksPrototype`
 - Check core geometry: `swift run DeskBlocksCoreChecks`
+- Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
 
 No lint or packaging command exists yet.
 
@@ -219,6 +224,7 @@ Current intended structure:
 - Put core grid and snapping math in testable pure logic where the selected stack allows it.
 - Use clear names for block geometry, tile dimensions, rows, columns, and snapped sizes.
 - Represent tile contents as references owned by DeskBlocks UI state, not as Finder file operations.
+- Keep folder-reference identity, display metadata, and tile placement explicit in the core model.
 - Do not introduce broad abstractions until at least two concrete uses justify them.
 
 ## Testing Strategy

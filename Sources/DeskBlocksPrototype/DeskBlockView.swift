@@ -12,6 +12,7 @@ final class DeskBlockView: NSView {
     var requestRemove: ((DeskBlockID) -> Void)?
     var requestAddTile: ((DeskBlockID) -> Void)?
     var requestDeleteTile: ((DeskBlockID) -> Void)?
+    var requestChooseFolder: ((DeskBlockID, Int) -> Void)?
 
     private var titleRect: NSRect {
         NSRect(
@@ -46,9 +47,16 @@ final class DeskBlockView: NSView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
+        let eventLocation = convert(event.locationInWindow, from: nil)
+        let clickedTileIndex = tileIndex(at: eventLocation)
         let renameItem = NSMenuItem(
             title: "Rename Block...",
             action: #selector(renameFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let chooseFolderItem = NSMenuItem(
+            title: clickedTileIndex.flatMap { state.tileReference(at: $0) } == nil ? "Choose Folder..." : "Replace Folder...",
+            action: #selector(chooseFolderFromContextMenu(_:)),
             keyEquivalent: ""
         )
         let addTileItem = NSMenuItem(
@@ -68,11 +76,17 @@ final class DeskBlockView: NSView {
         )
 
         renameItem.target = self
+        chooseFolderItem.target = self
+        chooseFolderItem.representedObject = clickedTileIndex
         addTileItem.target = self
         deleteTileItem.target = self
         removeItem.target = self
         menu.addItem(renameItem)
         menu.addItem(.separator())
+        if clickedTileIndex != nil {
+            menu.addItem(chooseFolderItem)
+            menu.addItem(.separator())
+        }
         menu.addItem(addTileItem)
         menu.addItem(deleteTileItem)
         menu.addItem(.separator())
@@ -134,6 +148,14 @@ final class DeskBlockView: NSView {
         requestDeleteTile?(state.id)
     }
 
+    @objc private func chooseFolderFromContextMenu(_ sender: NSMenuItem) {
+        guard let tileIndex = sender.representedObject as? Int else {
+            return
+        }
+
+        requestChooseFolder?(state.id, tileIndex)
+    }
+
     private func drawTileGrid() {
         let originX = PrototypeGeometry.padding
         let originY = PrototypeGeometry.padding + PrototypeGeometry.titleHeight
@@ -153,11 +175,11 @@ final class DeskBlockView: NSView {
     }
 
     private func tileLabel(at tileIndex: Int) -> String {
-        guard tileIndex < state.tileReferences.count else {
+        guard let tileReference = state.tileReference(at: tileIndex) else {
             return "Folder"
         }
 
-        return state.tileReferences[tileIndex].displayName
+        return tileReference.displayName
     }
 
     private func drawTile(row: Int, column: Int, originX: CGFloat, originY: CGFloat, label: String) {
@@ -217,5 +239,26 @@ final class DeskBlockView: NSView {
         )
 
         label.draw(in: labelRect, withAttributes: attributes)
+    }
+
+    private func tileIndex(at point: NSPoint) -> Int? {
+        let originX = PrototypeGeometry.padding
+        let originY = PrototypeGeometry.padding + PrototypeGeometry.titleHeight
+        let relativeX = point.x - originX
+        let relativeY = point.y - originY
+
+        guard relativeX >= 0, relativeY >= 0, state.columns > 0 else {
+            return nil
+        }
+
+        let column = Int(relativeX / PrototypeGeometry.tileWidth)
+        let row = Int(relativeY / PrototypeGeometry.tileHeight)
+        let tileIndex = row * state.columns + column
+
+        guard column >= 0, column < state.columns, tileIndex >= 0, tileIndex < state.visibleTileCount else {
+            return nil
+        }
+
+        return tileIndex
     }
 }

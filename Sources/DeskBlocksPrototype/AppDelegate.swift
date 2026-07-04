@@ -83,6 +83,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if let folderPath = commandLineValue(after: "--add-folder-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                let tileIndex = self?.commandLineInt(after: "--tile-index") ?? 0
+                self?.placeFolderReference(
+                    folderURL: URL(fileURLWithPath: folderPath, isDirectory: true),
+                    in: blockID,
+                    at: tileIndex
+                )
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--close-smoke") {
             DispatchQueue.main.async { [weak self] in
                 self?.windowsByBlockID.values.first?.close()
@@ -163,6 +181,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         return CommandLine.arguments[valueIndex]
+    }
+
+    private func commandLineInt(after flag: String) -> Int? {
+        commandLineValue(after: flag).flatMap(Int.init)
     }
 
     @objc private func createNewBlock(_ sender: Any?) {
@@ -267,6 +289,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         blockView.requestDeleteTile = { [weak self] blockID in
             self?.deleteTile(from: blockID)
+        }
+        blockView.requestChooseFolder = { [weak self] blockID, tileIndex in
+            self?.showChooseFolderPanel(for: blockID, tileIndex: tileIndex)
         }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
@@ -497,6 +522,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         update(block: updatedBlock)
+    }
+
+    private func showChooseFolderPanel(for blockID: DeskBlockID, tileIndex: Int) {
+        guard
+            state.block(id: blockID) != nil,
+            let window = windowsByBlockID[blockID]
+        else {
+            return
+        }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.prompt = "Choose"
+        panel.message = "Choose a folder for this DeskBlocks tile."
+
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let folderURL = panel.url else {
+                return
+            }
+
+            self?.placeFolderReference(folderURL: folderURL, in: blockID, at: tileIndex)
+        }
+    }
+
+    private func placeFolderReference(folderURL: URL, in blockID: DeskBlockID, at tileIndex: Int) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        do {
+            let bookmarkData = try folderURL.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            let displayName = FileManager.default.displayName(atPath: folderURL.path)
+            let reference = TileReference(
+                id: UUID().uuidString,
+                tileIndex: tileIndex,
+                displayName: displayName.isEmpty ? folderURL.lastPathComponent : displayName,
+                folderReference: FolderReference(
+                    bookmarkDataBase64: bookmarkData.base64EncodedString(),
+                    lastKnownPath: folderURL.path
+                )
+            )
+
+            let updatedBlock = currentBlock.placingTileReference(reference, at: tileIndex)
+
+            guard updatedBlock != currentBlock else {
+                NSSound.beep()
+                return
+            }
+
+            update(block: updatedBlock)
+        } catch {
+            fputs("DeskBlocksPrototype: failed to create folder bookmark: \(error)\n", stderr)
+            NSSound.beep()
+        }
     }
 
     private func update(block updatedBlock: DeskBlockState) {

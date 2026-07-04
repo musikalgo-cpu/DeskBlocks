@@ -231,7 +231,15 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
         rows: 3,
         tileCount: 10,
         tileReferences: [
-            TileReference(id: "tile-1", displayName: "Invoices", folderReference: "bookmark-placeholder")
+            TileReference(
+                id: "tile-1",
+                tileIndex: 2,
+                displayName: "Invoices",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-placeholder",
+                    lastKnownPath: "/Users/example/Desktop/Invoices"
+                )
+            )
         ]
     )
 
@@ -247,6 +255,98 @@ private func testDeskBlockStateSnapsProposedSizeAndPreservesReferences() {
     check(snapped.rows == 3, "expected rows to remain unchanged")
     check(snapped.tileCount == 10, "expected requested tile count to survive snapping")
     check(snapped.tileReferences == state.tileReferences, "expected tile references to survive snapping")
+}
+
+private func testDeskBlockStatePlacesFolderReferenceAtTileIndex() {
+    let state = DeskBlockState.prototypeDefault()
+    let reference = TileReference(
+        id: "tile-projects",
+        tileIndex: 0,
+        displayName: "Projects",
+        folderReference: FolderReference(
+            bookmarkDataBase64: "bookmark-projects",
+            lastKnownPath: "/Users/example/Desktop/Projects"
+        )
+    )
+
+    let updated = state.placingTileReference(reference, at: 5)
+
+    check(updated.tileReference(at: 5)?.displayName == "Projects", "expected reference at requested tile index")
+    check(updated.tileReference(at: 0) == nil, "expected original reference tile index to be replaced")
+    check(updated.tileReferences.count == 1, "expected one stored tile reference")
+}
+
+private func testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount() {
+    let state = DeskBlockState.prototypeDefault()
+    let reference = TileReference(
+        id: "tile-projects",
+        tileIndex: 0,
+        displayName: "Projects",
+        folderReference: FolderReference(
+            bookmarkDataBase64: "bookmark-projects",
+            lastKnownPath: "/Users/example/Desktop/Projects"
+        )
+    )
+
+    let updated = state.placingTileReference(reference, at: state.tileCount)
+
+    check(updated == state, "expected out-of-range tile placement to leave state unchanged")
+}
+
+private func testDeskBlockStateKeepsOnlyOneReferencePerTileIndex() {
+    let state = DeskBlockState(
+        title: "Work",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: TileGridMetrics.prototype.contentSize(columns: 2, rows: 2)
+        ),
+        columns: 2,
+        rows: 2,
+        tileReferences: [
+            TileReference(
+                id: "first",
+                tileIndex: 1,
+                displayName: "First",
+                folderReference: FolderReference(bookmarkDataBase64: "first-bookmark", lastKnownPath: "/first")
+            ),
+            TileReference(
+                id: "second",
+                tileIndex: 1,
+                displayName: "Second",
+                folderReference: FolderReference(bookmarkDataBase64: "second-bookmark", lastKnownPath: "/second")
+            )
+        ]
+    )
+
+    check(state.tileReferences.count == 1, "expected duplicate tile references to normalize to one reference")
+    check(state.tileReference(at: 1)?.id == "second", "expected later duplicate reference to win")
+}
+
+private func testDeskBlockStateDropsReferencesWhenTileIsRemoved() {
+    let metrics = TileGridMetrics.prototype
+    let state = DeskBlockState(
+        title: "Two Tiles",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: 2, rows: 1)
+        ),
+        columns: 2,
+        rows: 1,
+        tileCount: 2,
+        tileReferences: [
+            TileReference(
+                id: "last-tile",
+                tileIndex: 1,
+                displayName: "Last",
+                folderReference: FolderReference(bookmarkDataBase64: "last-bookmark", lastKnownPath: "/last")
+            )
+        ]
+    )
+
+    let updated = state.removingTile(metrics: metrics)
+
+    check(updated.tileCount == 1, "expected tile count to shrink")
+    check(updated.tileReferences.isEmpty, "expected reference in removed tile slot to be dropped")
 }
 
 private func testDeskBlockStateRoundTripsThroughJSON() {
@@ -372,7 +472,15 @@ private func testDeskBlocksStateRoundTripsThroughJSON() {
             columns: 2,
             rows: 4,
             tileReferences: [
-                TileReference(id: "tile-archive", displayName: "Archive", folderReference: "bookmark-placeholder")
+                TileReference(
+                    id: "tile-archive",
+                    tileIndex: 3,
+                    displayName: "Archive",
+                    folderReference: FolderReference(
+                        bookmarkDataBase64: "bookmark-placeholder",
+                        lastKnownPath: "/Users/example/Desktop/Archive"
+                    )
+                )
             ]
         )
     ])
@@ -429,7 +537,15 @@ private func testDeskBlocksStateRemovesBlocksByID() {
         columns: 2,
         rows: 2,
         tileReferences: [
-            TileReference(id: "tile-second", displayName: "Second Folder", folderReference: "bookmark-placeholder")
+            TileReference(
+                id: "tile-second",
+                tileIndex: 0,
+                displayName: "Second Folder",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-placeholder",
+                    lastKnownPath: "/Users/example/Desktop/Second Folder"
+                )
+            )
         ]
     )
     let state = DeskBlocksState(blocks: [firstBlock, secondBlock])
@@ -478,6 +594,28 @@ private func testDeskBlockStateIgnoresEmptyRenamedTitle() {
     check(renamed == state, "expected empty title edit to keep existing state")
 }
 
+private func testTileReferenceDecodesLegacyStringFolderReference() {
+    let legacyJSON = """
+    {
+      "id": "legacy-tile",
+      "displayName": "Legacy Folder",
+      "folderReference": "legacy-bookmark"
+    }
+    """
+
+    do {
+        let decoded = try JSONDecoder().decode(TileReference.self, from: Data(legacyJSON.utf8))
+
+        check(decoded.id == "legacy-tile", "expected legacy tile ID")
+        check(decoded.tileIndex == 0, "expected legacy tile index to default to zero")
+        check(decoded.folderReference.kind == .bookmark, "expected legacy reference to become a bookmark reference")
+        check(decoded.folderReference.bookmarkDataBase64 == "legacy-bookmark", "expected legacy string to be preserved")
+    } catch {
+        fputs("FAIL: expected legacy tile reference to decode, got \(error)\n", stderr)
+        Foundation.exit(1)
+    }
+}
+
 testPrototypeMetricsProduceInitialFourByThreeBlockSize()
 testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
@@ -493,6 +631,10 @@ testDeskBlockStateSnappingDoesNotHideRequestedTiles()
 testDeskBlockStateAddsTileAndExpandsOnlyWhenNeeded()
 testDeskBlockStateRemovesTileWithoutDeletingLastTile()
 testDeskBlockStateSnapsProposedSizeAndPreservesReferences()
+testDeskBlockStatePlacesFolderReferenceAtTileIndex()
+testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount()
+testDeskBlockStateKeepsOnlyOneReferencePerTileIndex()
+testDeskBlockStateDropsReferencesWhenTileIsRemoved()
 testDeskBlockStateRoundTripsThroughJSON()
 testDeskBlockStateDecodesLegacyJSONWithoutID()
 testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
@@ -504,5 +646,6 @@ testDeskBlocksStateIgnoresRemovalOfUnknownBlockID()
 testDeskBlocksStateCanRemoveTheLastBlock()
 testDeskBlockStateRenamesWithTrimmedTitle()
 testDeskBlockStateIgnoresEmptyRenamedTitle()
+testTileReferenceDecodesLegacyStringFolderReference()
 
 print("DeskBlocksCoreChecks passed")
