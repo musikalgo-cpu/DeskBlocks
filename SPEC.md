@@ -195,21 +195,17 @@ Current intended structure:
 
 - `AGENTS.md` - durable Codex project guidance.
 - `SPEC.md` - product and technical source of truth.
-- `docs/` - supporting project documentation and future ADRs.
+- `docs/` - supporting project documentation, ADRs, and lightweight models.
 - `agents/` - copied role guidance for review/testing/security/performance.
 - `skills/` - copied local reference workflows.
 - `references/` - copied local checklists.
 - `Package.swift` - SwiftPM package for the Swift/AppKit feasibility prototype.
 - `Sources/DeskBlocksCore/` - pure Swift geometry and snapping logic.
 - `Sources/DeskBlocksCoreChecks/` - executable checks for grid and snapping invariants.
-- `Sources/DeskBlocksPrototype/` - current prototype source.
-
-Expected future additions:
-
+- `Sources/DeskBlocksPrototype/` - current Swift/AppKit MVP prototype source.
 - `docs/decisions/` - ADRs for durable technical choices.
-- `tasks/plan.md` - implementation plan.
-- `tasks/todo.md` - task checklist.
-- Source directories as needed for the Swift/AppKit MVP.
+- `docs/models/` - lightweight product and state models that clarify invariants.
+- `tasks/` - implementation plans, task checklists, and feasibility evidence.
 
 ## Code Style
 
@@ -295,9 +291,9 @@ MVP is successful when:
 
 ## Open Questions
 
-- What exact tile dimensions best match Finder folder icon and label readability on the user's display?
-- Should the current `desktopIconWindow + 1` level remain the final MVP window level after broader daily-use testing?
-- What persistence format should be used after the stack is selected?
+- Should the current `112x104` point tile slot remain the MVP value after real folder-reference tiles or additional display setups are tested?
+- Should the current `desktopIconWindow + 1` level remain acceptable after longer daily-use testing or multi-monitor validation?
+- Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
 - Should folder references be stored as paths, aliases, bookmarks, or another macOS-native reference type?
 - Should magnetic tile placement be tested before or after the basic block MVP is proven?
 
@@ -308,4 +304,4 @@ Confidence score: 88%.
 Reason:
 
 - Product intent, MVP direction, non-goals, accepted MVP stack, and first technical risk are clear from the existing project conversation, feasibility evidence, `AGENTS.md`, and ADR-002.
-- Exact tile dimensions, final daily-use window behavior, block-creation UX, persistence format, and folder-reference representation remain unresolved because they require measurement or focused implementation evidence rather than guessing.
+- Real folder-reference representation, longer daily-use window behavior, multi-monitor behavior, and any later persistence-format change remain unresolved because they require focused implementation evidence rather than guessing.

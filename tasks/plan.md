@@ -1,5 +1,7 @@
 # Implementation Plan: DeskBlocks Feasibility Phase
 
+Historical note: this plan records the completed feasibility phase. For current product truth, use `SPEC.md`; for the accepted stack decision, use `docs/decisions/ADR-002-accept-swift-appkit-for-mvp.md`; for current MVP work, use `tasks/mvp-plan.md`.
+
 ## Overview
 
 The first phase proves whether DeskBlocks can work as a macOS desktop-level visual utility before committing to a production app stack. The phase ends with evidence, an ADR for the stack decision, and updated project commands if a stack is accepted.
@@ -176,7 +178,7 @@ The first phase proves whether DeskBlocks can work as a macOS desktop-level visu
 
 ## Open Questions
 
-- Which stack should be tested first?
-- What exact tile dimensions should the first prototype use?
-- Which macOS window layer is acceptable for normal desktop use?
-- Should magnetic tile placement be tested before the final stack ADR or deferred until after the basic block MVP is proven?
+- Resolved by ADR-002: Swift/AppKit is accepted for the MVP stack.
+- Resolved for the current MVP candidate: tile slots use `112x104` points.
+- Resolved for the current MVP candidate: `desktopIconWindow + 1` is acceptable with documented limitations.
+- Deferred beyond the basic block MVP: folder references and magnetic tile placement.

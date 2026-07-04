@@ -171,6 +171,9 @@ Current code already covers:
 - Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
 - Title editing preserves block identity, geometry, tile references, and persisted state.
 - Rename behavior is guarded by `swift run DeskBlocksPrototype --rename-smoke "Title"`.
+- Block removal preserves non-removed blocks, allows an intentionally empty state, and never affects Finder files.
+- Remove behavior is guarded by `swift run DeskBlocksPrototype --remove-smoke`.
+- Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.
 
 Current feasibility evidence covers:
 
@@ -182,17 +185,15 @@ Current feasibility evidence covers:
 Current code still needs future evidence for:
 
 - Multi-monitor behavior when a second display is available.
-- Daily-use validation of the current `desktopIconWindow + 1` window level.
-- Block removal.
+- Longer daily-use validation of the current `desktopIconWindow + 1` window level.
 - Installed `.app` relaunch behavior; the current prototype is relaunched through SwiftPM.
 
 ## When To Update This Model
 
-Update this document before implementing:
+Update this document before implementing or changing:
 
-- multiple blocks
-- block creation/removal
-- title editing
+- block lifecycle behavior
+- block creation, removal, title editing, or tile-count behavior
 - folder drag-and-drop
 - magnetic tile placement
 - any persistence format change

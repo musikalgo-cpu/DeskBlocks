@@ -242,7 +242,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - [x] Manual visual check on the user's desktop.
 
 **Implementation notes:**
-- Current MVP calibration candidate uses `112x104` point tile slots.
+- Current MVP calibration uses `112x104` point tile slots.
 - A default `4x3` block is now `472x370` points including padding and title area.
 - Empty prototype tiles render the native macOS system folder icon and `Folder` label so readability can be judged before real folder references exist.
 
@@ -330,5 +330,5 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 ## Open Questions
 
 - Should the app stay as a normal dock app during MVP, or later become a menu bar app?
-- What exact MVP tile dimensions should be accepted after visual calibration?
+- Should the current `112x104` point tile slot be recalibrated after real folder-reference tiles or additional displays are tested?
 - Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
