@@ -206,11 +206,13 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     public func snapped(
         metrics: TileGridMetrics,
         origin: BlockPoint? = nil,
-        proposedSize: BlockSize? = nil
+        proposedSize: BlockSize? = nil,
+        fittingWithin maximumSize: BlockSize? = nil
     ) -> DeskBlockState {
         let snapped = metrics.snappedSize(
             for: proposedSize ?? frame.size,
-            containingAtLeastTileCount: tileCount
+            containingAtLeastTileCount: tileCount,
+            fittingWithin: maximumSize
         )
 
         return DeskBlockState(
@@ -434,6 +436,7 @@ public struct TileGridMetrics: Equatable, Sendable {
     public let tileHeight: Double
     public let titleHeight: Double
     public let padding: Double
+    public let verticalOverflowIndicatorAllowance: Double
     public let minimumColumns: Int
     public let minimumRows: Int
 
@@ -442,6 +445,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         tileHeight: 104,
         titleHeight: 34,
         padding: 12,
+        verticalOverflowIndicatorAllowance: 28,
         minimumColumns: 1,
         minimumRows: 1
     )
@@ -451,6 +455,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         tileHeight: Double,
         titleHeight: Double,
         padding: Double,
+        verticalOverflowIndicatorAllowance: Double,
         minimumColumns: Int,
         minimumRows: Int
     ) {
@@ -458,6 +463,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         precondition(tileHeight > 0, "tileHeight must be positive")
         precondition(titleHeight >= 0, "titleHeight must not be negative")
         precondition(padding >= 0, "padding must not be negative")
+        precondition(verticalOverflowIndicatorAllowance >= 0, "verticalOverflowIndicatorAllowance must not be negative")
         precondition(minimumColumns > 0, "minimumColumns must be positive")
         precondition(minimumRows > 0, "minimumRows must be positive")
 
@@ -465,6 +471,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         self.tileHeight = tileHeight
         self.titleHeight = titleHeight
         self.padding = padding
+        self.verticalOverflowIndicatorAllowance = verticalOverflowIndicatorAllowance
         self.minimumColumns = minimumColumns
         self.minimumRows = minimumRows
     }
@@ -475,7 +482,7 @@ public struct TileGridMetrics: Equatable, Sendable {
 
         return BlockSize(
             width: padding * 2 + Double(safeColumns) * tileWidth,
-            height: padding * 2 + titleHeight + Double(safeRows) * tileHeight
+            height: padding * 2 + titleHeight + verticalOverflowIndicatorAllowance + Double(safeRows) * tileHeight
         )
     }
 
@@ -500,7 +507,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         )
         let rows = wholeTileCount(
             proposedLength: proposedSize.height,
-            fixedAllowance: padding * 2 + titleHeight,
+            fixedAllowance: padding * 2 + titleHeight + verticalOverflowIndicatorAllowance,
             tileLength: tileHeight,
             minimumCount: minimumRows
         )
@@ -518,15 +525,46 @@ public struct TileGridMetrics: Equatable, Sendable {
         for proposedSize: BlockSize,
         containingAtLeastTileCount tileCount: Int
     ) -> SnappedBlockSize {
+        snappedSize(for: proposedSize, containingAtLeastTileCount: tileCount, fittingWithin: nil)
+    }
+
+    public func snappedSize(
+        for proposedSize: BlockSize,
+        containingAtLeastTileCount tileCount: Int,
+        fittingWithin maximumSize: BlockSize?
+    ) -> SnappedBlockSize {
         let snapped = snappedSize(for: proposedSize)
-        let minimumLayout = gridLayout(containingTileCount: tileCount)
-        let columns = max(snapped.columns, minimumLayout.columns)
-        let rows = max(snapped.rows, minimumLayout.rows)
+        let safeTileCount = max(1, tileCount)
+        let maximumColumns = maximumSize.map { maximumSize in
+            maximumWholeTileCount(
+                proposedLength: maximumSize.width,
+                fixedAllowance: padding * 2,
+                tileLength: tileWidth,
+                minimumCount: minimumColumns
+            )
+        } ?? Int.max
+        let maximumRows = maximumSize.map { maximumSize in
+            maximumWholeTileCount(
+                proposedLength: maximumSize.height,
+                fixedAllowance: padding * 2 + titleHeight + verticalOverflowIndicatorAllowance,
+                tileLength: tileHeight,
+                minimumCount: minimumRows
+            )
+        } ?? Int.max
+        let columns = min(max(snapped.columns, minimumColumns), maximumColumns)
+        let rows = maximumSize == nil
+            ? max(
+                snapped.rows,
+                minimumRows,
+                Int(ceil(Double(safeTileCount) / Double(columns)))
+            )
+            : max(snapped.rows, minimumRows)
+        let cappedRows = min(rows, maximumRows)
 
         return SnappedBlockSize(
-            size: contentSize(columns: columns, rows: rows),
+            size: contentSize(columns: columns, rows: cappedRows),
             columns: columns,
-            rows: rows,
+            rows: cappedRows,
             tileWidth: tileWidth,
             tileHeight: tileHeight
         )
@@ -540,6 +578,18 @@ public struct TileGridMetrics: Equatable, Sendable {
     ) -> Int {
         let usableLength = max(0, proposedLength - fixedAllowance)
         let proposedCount = Int((usableLength / tileLength).rounded(.toNearestOrAwayFromZero))
+
+        return max(minimumCount, proposedCount)
+    }
+
+    private func maximumWholeTileCount(
+        proposedLength: Double,
+        fixedAllowance: Double,
+        tileLength: Double,
+        minimumCount: Int
+    ) -> Int {
+        let usableLength = max(0, proposedLength - fixedAllowance)
+        let proposedCount = Int((usableLength / tileLength).rounded(.down))
 
         return max(minimumCount, proposedCount)
     }

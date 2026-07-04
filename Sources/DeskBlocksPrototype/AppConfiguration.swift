@@ -16,6 +16,8 @@ enum OverlayWindowConfiguration {
 
 enum PrototypeGeometry {
     static let metrics = TileGridMetrics.prototype
+    static let maximumVisibleColumns = 10
+    static let maximumVisibleRows = 10
 
     static var tileWidth: CGFloat { CGFloat(metrics.tileWidth) }
     static var tileHeight: CGFloat { CGFloat(metrics.tileHeight) }

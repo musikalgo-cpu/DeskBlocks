@@ -19,7 +19,7 @@ private func testPrototypeMetricsProduceInitialFourByThreeBlockSize() {
     let size = metrics.contentSize(columns: 4, rows: 3)
 
     check(size.width == 472, "expected initial width to be 472")
-    check(size.height == 370, "expected initial height to be 370")
+    check(size.height == 398, "expected initial height to include overflow indicator allowance")
 }
 
 private func testSnappingUpAddsAWholeColumn() {
@@ -72,9 +72,50 @@ private func testSnappingCanEnforceMinimumCapacityForTileCount() {
     let proposedSize = metrics.contentSize(columns: 1, rows: 1)
     let snapped = metrics.snappedSize(for: proposedSize, containingAtLeastTileCount: 10)
 
-    check(snapped.columns == 4, "expected 10 tiles to require at least 4 columns")
-    check(snapped.rows == 3, "expected 10 tiles to require at least 3 rows")
-    check(snapped.size == metrics.contentSize(columns: 4, rows: 3), "expected minimum size to fit 10 tiles")
+    check(snapped.columns == 1, "expected proposed 1-column width to stay at 1 column")
+    check(snapped.rows == 10, "expected 10 tiles in 1 column to require 10 rows")
+    check(snapped.size == metrics.contentSize(columns: 1, rows: 10), "expected minimum size to fit 10 tiles")
+}
+
+private func testSnappingCanReduceRowsWhenProposedWidthFitsTiles() {
+    let metrics = TileGridMetrics.prototype
+    let proposedSize = metrics.contentSize(columns: 6, rows: 1)
+    let snapped = metrics.snappedSize(for: proposedSize, containingAtLeastTileCount: 12)
+
+    check(snapped.columns == 6, "expected proposed 6-column width to be preserved")
+    check(snapped.rows == 2, "expected 12 tiles in 6 columns to require only 2 rows")
+    check(snapped.size == metrics.contentSize(columns: 6, rows: 2), "expected empty third row to be removable")
+}
+
+private func testSnappingCanCapToMaximumContentSize() {
+    let metrics = TileGridMetrics.prototype
+    let maximumSize = metrics.contentSize(columns: 3, rows: 2)
+    let proposedSize = metrics.contentSize(columns: 8, rows: 8)
+
+    let snapped = metrics.snappedSize(
+        for: proposedSize,
+        containingAtLeastTileCount: 100,
+        fittingWithin: maximumSize
+    )
+
+    check(snapped.columns == 3, "expected columns to cap at maximum content width")
+    check(snapped.rows == 2, "expected rows to cap at maximum content height")
+    check(snapped.size == maximumSize, "expected snapped size to stay within maximum content size")
+}
+
+private func testSnappingAllowsViewportSmallerThanTileCountWhenMaximumContentSizeExists() {
+    let metrics = TileGridMetrics.prototype
+    let maximumSize = metrics.contentSize(columns: 10, rows: 10)
+    let proposedSize = metrics.contentSize(columns: 1, rows: 1)
+
+    let snapped = metrics.snappedSize(
+        for: proposedSize,
+        containingAtLeastTileCount: 30,
+        fittingWithin: maximumSize
+    )
+
+    check(snapped.columns == 1, "expected viewport width to follow proposed 1-column size")
+    check(snapped.rows == 1, "expected viewport height to allow scrolling instead of forcing all rows visible")
 }
 
 private func testTileSizeRemainsUnchangedAcrossSnapping() {
@@ -173,8 +214,8 @@ private func testDeskBlockStateSnappingDoesNotHideRequestedTiles() {
         proposedSize: metrics.contentSize(columns: 1, rows: 1)
     )
 
-    check(snapped.columns == 4, "expected snapped block to keep enough columns for 10 tiles")
-    check(snapped.rows == 3, "expected snapped block to keep enough rows for 10 tiles")
+    check(snapped.columns == 1, "expected proposed 1-column width to be preserved")
+    check(snapped.rows == 10, "expected snapped block to grow rows enough for 10 tiles")
     check(snapped.tileCapacity >= snapped.tileCount, "expected snapped capacity to fit requested tiles")
     check(snapped.visibleTileCount == 10, "expected all requested tiles to remain visible after resize")
 }
@@ -655,6 +696,9 @@ testSnappingUpAddsAWholeColumn()
 testSnappingDownRemovesOnlyAWholeColumn()
 testSnappingEnforcesMinimumUsableSize()
 testSnappingCanEnforceMinimumCapacityForTileCount()
+testSnappingCanReduceRowsWhenProposedWidthFitsTiles()
+testSnappingCanCapToMaximumContentSize()
+testSnappingAllowsViewportSmallerThanTileCountWhenMaximumContentSizeExists()
 testTileSizeRemainsUnchangedAcrossSnapping()
 testTileCountLayoutUsesPerfectSquaresWhenPossible()
 testTileCountLayoutAddsColumnsBeforeRowsForNonSquares()

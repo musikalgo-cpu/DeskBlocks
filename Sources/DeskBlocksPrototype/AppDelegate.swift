@@ -141,7 +141,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let proposedContent = sender.contentRect(forFrameRect: proposedFrame)
         let snapped = PrototypeGeometry.metrics.snappedSize(
             for: BlockSize(proposedContent.size),
-            containingAtLeastTileCount: currentBlock.tileCount
+            containingAtLeastTileCount: currentBlock.tileCount,
+            fittingWithin: maximumContentSize(for: sender)
         )
         let snappedFrame = sender.frameRect(
             forContentRect: NSRect(origin: .zero, size: snapped.size.nsSize)
@@ -164,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         applySnappedFrameIfNeeded(to: window)
+        keepWindowInsideVisibleScreen(window)
         updateState(from: window, save: true)
     }
 
@@ -172,6 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        keepWindowInsideVisibleScreen(window)
         updateState(from: window, save: true)
     }
 
@@ -343,13 +346,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func minimumFrameSize(for block: DeskBlockState, in window: NSWindow) -> NSSize {
-        let minimumLayout = PrototypeGeometry.metrics.gridLayout(containingTileCount: block.tileCount)
         let minimumContentSize = PrototypeGeometry.metrics.contentSize(
-            columns: minimumLayout.columns,
-            rows: minimumLayout.rows
+            columns: PrototypeGeometry.metrics.minimumColumns,
+            rows: PrototypeGeometry.metrics.minimumRows
         )
 
         return window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumContentSize.nsSize)).size
+    }
+
+    private func maximumContentSize(for window: NSWindow) -> BlockSize? {
+        guard let screenFrame = (window.screen ?? NSScreen.main)?.visibleFrame else {
+            return maximumTileViewportContentSize()
+        }
+
+        let maximumViewportSize = maximumTileViewportContentSize()
+        let maxFrameSize = screenFrame.size
+        let maxContentRect = window.contentRect(
+            forFrameRect: NSRect(origin: .zero, size: maxFrameSize)
+        )
+
+        return BlockSize(
+            width: min(maxContentRect.width, maximumViewportSize.width),
+            height: min(maxContentRect.height, maximumViewportSize.height)
+        )
+    }
+
+    private func maximumTileViewportContentSize() -> BlockSize {
+        PrototypeGeometry.metrics.contentSize(
+            columns: PrototypeGeometry.maximumVisibleColumns,
+            rows: PrototypeGeometry.maximumVisibleRows
+        )
+    }
+
+    private func keepWindowInsideVisibleScreen(_ window: NSWindow) {
+        guard let visibleFrame = (window.screen ?? NSScreen.main)?.visibleFrame else {
+            return
+        }
+
+        var frame = window.frame
+
+        if frame.width > visibleFrame.width {
+            frame.size.width = visibleFrame.width
+        }
+        if frame.height > visibleFrame.height {
+            frame.size.height = visibleFrame.height
+        }
+
+        if frame.minX < visibleFrame.minX {
+            frame.origin.x = visibleFrame.minX
+        }
+        if frame.maxX > visibleFrame.maxX {
+            frame.origin.x = visibleFrame.maxX - frame.width
+        }
+        if frame.minY < visibleFrame.minY {
+            frame.origin.y = visibleFrame.minY
+        }
+        if frame.maxY > visibleFrame.maxY {
+            frame.origin.y = visibleFrame.maxY - frame.height
+        }
+
+        guard frame != window.frame else {
+            return
+        }
+
+        window.setFrame(frame, display: true)
     }
 
     private func showNewBlockDialog() {
@@ -421,10 +481,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             title: blockTitle,
             frame: BlockFrame(
                 origin: BlockPoint(x: 240 + offset, y: 240 + offset),
-                size: PrototypeGeometry.metrics.contentSize(columns: layout.columns, rows: layout.rows)
+                size: PrototypeGeometry.metrics.contentSize(
+                    columns: min(layout.columns, PrototypeGeometry.maximumVisibleColumns),
+                    rows: min(layout.rows, PrototypeGeometry.maximumVisibleRows)
+                )
             ),
-            columns: layout.columns,
-            rows: layout.rows,
+            columns: min(layout.columns, PrototypeGeometry.maximumVisibleColumns),
+            rows: min(layout.rows, PrototypeGeometry.maximumVisibleRows),
             tileCount: layout.requestedTileCount,
             tileReferences: []
         )
@@ -683,7 +746,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let contentRect = window.contentRect(forFrameRect: window.frame)
         let minimumContentSize = PrototypeGeometry.metrics.snappedSize(
             for: BlockSize(contentRect.size),
-            containingAtLeastTileCount: updatedBlock.tileCount
+            containingAtLeastTileCount: updatedBlock.tileCount,
+            fittingWithin: maximumContentSize(for: window)
         ).size
 
         if BlockSize(contentRect.size) != minimumContentSize {
@@ -768,13 +832,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let origin = BlockPoint(contentRect.origin)
         let snapped = PrototypeGeometry.metrics.snappedSize(
             for: BlockSize(contentRect.size),
-            containingAtLeastTileCount: currentBlock.tileCount
+            containingAtLeastTileCount: currentBlock.tileCount,
+            fittingWithin: maximumContentSize(for: window)
         )
 
         let updatedBlock = currentBlock.snapped(
             metrics: PrototypeGeometry.metrics,
             origin: origin,
-            proposedSize: snapped.size
+            proposedSize: snapped.size,
+            fittingWithin: maximumContentSize(for: window)
         )
 
         state = state.updating(block: updatedBlock)
@@ -801,7 +867,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let snapped = PrototypeGeometry.metrics.snappedSize(
             for: BlockSize(contentRect.size),
-            containingAtLeastTileCount: currentBlock.tileCount
+            containingAtLeastTileCount: currentBlock.tileCount,
+            fittingWithin: maximumContentSize(for: window)
         )
 
         guard snapped.size != BlockSize(contentRect.size) else {

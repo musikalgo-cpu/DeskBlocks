@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 final class DeskBlockView: NSView {
     var state: DeskBlockState {
         didSet {
+            clampTileScrollOffset()
             needsDisplay = true
         }
     }
@@ -16,6 +17,23 @@ final class DeskBlockView: NSView {
     var requestPlaceFolder: ((DeskBlockID, Int, URL) -> Void)?
     var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
     var requestRemoveFolderReference: ((DeskBlockID, Int) -> Void)?
+
+    private var magneticTargetTileIndex: Int? {
+        didSet {
+            if magneticTargetTileIndex != oldValue {
+                needsDisplay = true
+            }
+        }
+    }
+    private let magneticTargetMargin: CGFloat = 18
+    private var tileScrollOffset = 0 {
+        didSet {
+            if tileScrollOffset != oldValue {
+                magneticTargetTileIndex = nil
+                needsDisplay = true
+            }
+        }
+    }
 
     private var titleRect: NSRect {
         NSRect(
@@ -54,33 +72,57 @@ final class DeskBlockView: NSView {
         super.mouseDown(with: event)
     }
 
+    override func scrollWheel(with event: NSEvent) {
+        guard maxTileScrollOffset > 0 else {
+            super.scrollWheel(with: event)
+            return
+        }
+
+        let horizontalIntent = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        let step = horizontalIntent ? 1 : max(1, state.columns)
+        let delta = horizontalIntent ? event.scrollingDeltaX : -event.scrollingDeltaY
+
+        guard delta != 0 else {
+            super.scrollWheel(with: event)
+            return
+        }
+
+        scrollTiles(by: delta > 0 ? step : -step, alignToRows: !horizontalIntent)
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard folderURL(from: sender.draggingPasteboard) != nil, tileIndex(at: convert(sender.draggingLocation, from: nil)) != nil else {
+        guard folderURL(from: sender.draggingPasteboard) != nil else {
             return []
         }
 
-        return dragOperation(for: sender)
+        return updateMagneticTarget(for: sender)
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard folderURL(from: sender.draggingPasteboard) != nil, tileIndex(at: convert(sender.draggingLocation, from: nil)) != nil else {
+        guard folderURL(from: sender.draggingPasteboard) != nil else {
             return []
         }
 
-        return dragOperation(for: sender)
+        return updateMagneticTarget(for: sender)
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        magneticTargetTileIndex = nil
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let eventLocation = convert(sender.draggingLocation, from: nil)
 
         guard
-            let tileIndex = tileIndex(at: eventLocation),
+            let tileIndex = magneticTileIndex(at: eventLocation),
             let folderURL = folderURL(from: sender.draggingPasteboard)
         else {
+            magneticTargetTileIndex = nil
             return false
         }
 
         requestPlaceFolder?(state.id, tileIndex, folderURL)
+        magneticTargetTileIndex = nil
         return true
     }
 
@@ -165,24 +207,23 @@ final class DeskBlockView: NSView {
             yRadius: 8
         )
 
-        NSColor(calibratedWhite: 0.98, alpha: 0.88).setFill()
-        blockPath.fill()
-
         NSColor(calibratedRed: 0.18, green: 0.27, blue: 0.34, alpha: 0.85).setStroke()
         blockPath.lineWidth = 1
         blockPath.stroke()
 
         drawTitle()
         drawTileGrid()
+        drawOverflowIndicators()
     }
 
     private func drawTitle() {
         let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
         paragraphStyle.lineBreakMode = .byTruncatingTail
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 15, weight: .semibold),
-            .foregroundColor: NSColor(calibratedRed: 0.11, green: 0.16, blue: 0.2, alpha: 1),
+            .foregroundColor: NSColor.white,
             .paragraphStyle: paragraphStyle
         ]
 
@@ -234,19 +275,30 @@ final class DeskBlockView: NSView {
 
     private func drawTileGrid() {
         let originX = PrototypeGeometry.padding
-        let originY = PrototypeGeometry.padding + PrototypeGeometry.titleHeight
+        let originY = tileGridOriginY
 
         guard state.columns > 0 else {
             return
         }
 
-        for tileIndex in 0..<state.visibleTileCount {
-            let row = tileIndex / state.columns
-            let column = tileIndex % state.columns
+        for visibleSlot in 0..<visibleSlotCount {
+            guard let tileIndex = tileIndex(forVisibleSlot: visibleSlot) else {
+                continue
+            }
+
+            let row = visibleSlot / state.columns
+            let column = visibleSlot % state.columns
 
             let label = tileLabel(at: tileIndex)
 
-            drawTile(row: row, column: column, originX: originX, originY: originY, label: label)
+            drawTile(
+                row: row,
+                column: column,
+                originX: originX,
+                originY: originY,
+                label: label,
+                isMagneticTarget: tileIndex == magneticTargetTileIndex
+            )
         }
     }
 
@@ -258,24 +310,47 @@ final class DeskBlockView: NSView {
         return tileReference.displayName
     }
 
-    private func drawTile(row: Int, column: Int, originX: CGFloat, originY: CGFloat, label: String) {
+    private func drawTile(
+        row: Int,
+        column: Int,
+        originX: CGFloat,
+        originY: CGFloat,
+        label: String,
+        isMagneticTarget: Bool
+    ) {
+        let tileInset: CGFloat = isMagneticTarget ? 3 : 5
         let tileRect = NSRect(
             x: originX + CGFloat(column) * PrototypeGeometry.tileWidth,
             y: originY + CGFloat(row) * PrototypeGeometry.tileHeight,
             width: PrototypeGeometry.tileWidth,
             height: PrototypeGeometry.tileHeight
-        ).insetBy(dx: 5, dy: 5)
+        ).insetBy(dx: tileInset, dy: tileInset)
 
         let tilePath = NSBezierPath(
             roundedRect: tileRect,
             xRadius: 5,
             yRadius: 5
         )
-        NSColor(calibratedWhite: 1, alpha: 0.62).setFill()
-        tilePath.fill()
 
-        NSColor(calibratedRed: 0.22, green: 0.32, blue: 0.38, alpha: 0.28).setStroke()
-        tilePath.lineWidth = 1
+        if isMagneticTarget {
+            NSGraphicsContext.saveGraphicsState()
+            let shadow = NSShadow()
+            shadow.shadowOffset = NSSize(width: 0, height: -1)
+            shadow.shadowBlurRadius = 5
+            shadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.18)
+            shadow.set()
+            NSColor(calibratedWhite: 1, alpha: 0.22).setFill()
+            tilePath.fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        if isMagneticTarget {
+            NSColor(calibratedRed: 0.16, green: 0.22, blue: 0.26, alpha: 0.42).setStroke()
+            tilePath.lineWidth = 1.5
+        } else {
+            NSColor(calibratedRed: 0.22, green: 0.32, blue: 0.38, alpha: 0.28).setStroke()
+            tilePath.lineWidth = 1
+        }
         tilePath.stroke()
 
         drawFolderPlaceholder(in: tileRect)
@@ -304,7 +379,7 @@ final class DeskBlockView: NSView {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .regular),
-            .foregroundColor: NSColor(calibratedRed: 0.12, green: 0.16, blue: 0.19, alpha: 1),
+            .foregroundColor: NSColor.white,
             .paragraphStyle: paragraphStyle
         ]
         let labelRect = NSRect(
@@ -318,24 +393,200 @@ final class DeskBlockView: NSView {
     }
 
     private func tileIndex(at point: NSPoint) -> Int? {
+        tileIndex(at: point, margin: 0)
+    }
+
+    private func magneticTileIndex(at point: NSPoint) -> Int? {
+        tileIndex(at: point, margin: magneticTargetMargin)
+    }
+
+    private func tileIndex(at point: NSPoint, margin: CGFloat) -> Int? {
         let originX = PrototypeGeometry.padding
-        let originY = PrototypeGeometry.padding + PrototypeGeometry.titleHeight
+        let originY = tileGridOriginY
         let relativeX = point.x - originX
         let relativeY = point.y - originY
 
-        guard relativeX >= 0, relativeY >= 0, state.columns > 0 else {
+        guard state.columns > 0, state.visibleTileCount > 0 else {
             return nil
         }
 
-        let column = Int(relativeX / PrototypeGeometry.tileWidth)
-        let row = Int(relativeY / PrototypeGeometry.tileHeight)
-        let tileIndex = row * state.columns + column
+        let rowCount = visibleRowCount
+        let gridWidth = CGFloat(state.columns) * PrototypeGeometry.tileWidth
+        let gridHeight = CGFloat(rowCount) * PrototypeGeometry.tileHeight
 
-        guard column >= 0, column < state.columns, tileIndex >= 0, tileIndex < state.visibleTileCount else {
+        guard
+            relativeX >= -margin,
+            relativeY >= -margin,
+            relativeX < gridWidth + margin,
+            relativeY < gridHeight + margin
+        else {
+            return nil
+        }
+
+        let clampedX = min(
+            max(relativeX, 0),
+            CGFloat(state.columns) * PrototypeGeometry.tileWidth - 1
+        )
+        let clampedY = min(
+            max(relativeY, 0),
+            CGFloat(rowCount) * PrototypeGeometry.tileHeight - 1
+        )
+        let column = Int(clampedX / PrototypeGeometry.tileWidth)
+        let row = Int(clampedY / PrototypeGeometry.tileHeight)
+        let visibleSlot = row * state.columns + column
+
+        guard
+            column >= 0,
+            column < state.columns,
+            visibleSlot >= 0,
+            visibleSlot < visibleSlotCount
+        else {
+            return nil
+        }
+
+        return tileIndex(forVisibleSlot: visibleSlot)
+    }
+
+    private func updateMagneticTarget(for sender: NSDraggingInfo) -> NSDragOperation {
+        let eventLocation = convert(sender.draggingLocation, from: nil)
+        magneticTargetTileIndex = magneticTileIndex(at: eventLocation)
+
+        guard magneticTargetTileIndex != nil else {
+            return []
+        }
+
+        return dragOperation(for: sender)
+    }
+
+    private var visibleSlotCount: Int {
+        max(0, min(state.tileCapacity, state.tileCount - tileScrollOffset))
+    }
+
+    private var visibleRowCount: Int {
+        guard state.columns > 0 else {
+            return 0
+        }
+
+        return Int(ceil(Double(visibleSlotCount) / Double(state.columns)))
+    }
+
+    private var maxTileScrollOffset: Int {
+        max(0, state.tileCount - max(1, state.tileCapacity))
+    }
+
+    private var canScrollBackward: Bool {
+        tileScrollOffset > 0
+    }
+
+    private var canScrollForward: Bool {
+        tileScrollOffset < maxTileScrollOffset
+    }
+
+    private func tileIndex(forVisibleSlot visibleSlot: Int) -> Int? {
+        let tileIndex = tileScrollOffset + visibleSlot
+
+        guard visibleSlot >= 0, tileIndex >= 0, tileIndex < state.tileCount else {
             return nil
         }
 
         return tileIndex
+    }
+
+    private func scrollTiles(by delta: Int, alignToRows: Bool) {
+        let nextOffset = min(max(tileScrollOffset + delta, 0), maxTileScrollOffset)
+        let alignedOffset = alignToRows ? rowAlignedTileScrollOffset(nextOffset) : nextOffset
+
+        guard alignedOffset != tileScrollOffset else {
+            return
+        }
+
+        tileScrollOffset = alignedOffset
+    }
+
+    private func clampTileScrollOffset() {
+        tileScrollOffset = rowAlignedTileScrollOffset(min(tileScrollOffset, maxTileScrollOffset))
+    }
+
+    private func rowAlignedTileScrollOffset(_ proposedOffset: Int) -> Int {
+        guard state.columns > 0 else {
+            return 0
+        }
+
+        let cappedOffset = min(max(proposedOffset, 0), maxTileScrollOffset)
+        return min((cappedOffset / state.columns) * state.columns, maxTileScrollOffset)
+    }
+
+    private func drawOverflowIndicators() {
+        guard state.tileCapacity < state.tileCount else {
+            return
+        }
+
+        let gridMinX = PrototypeGeometry.padding
+        let gridMinY = tileGridOriginY
+        let gridWidth = CGFloat(state.columns) * PrototypeGeometry.tileWidth
+        let gridHeight = CGFloat(max(1, state.rows)) * PrototypeGeometry.tileHeight
+
+        if canScrollForward {
+            drawBottomOverflowHint(
+                x: gridMinX,
+                y: gridMinY + gridHeight,
+                width: gridWidth
+            )
+        }
+
+        if canScrollBackward {
+            drawTopOverflowHint(
+                x: gridMinX,
+                y: gridMinY,
+                width: gridWidth
+            )
+        }
+    }
+
+    private func drawBottomOverflowHint(x: CGFloat, y: CGFloat, width: CGFloat) {
+        drawChevron(
+            center: NSPoint(x: x + width / 2, y: y + 10),
+            pointsDown: true,
+            alpha: 0.42
+        )
+    }
+
+    private func drawTopOverflowHint(x: CGFloat, y: CGFloat, width: CGFloat) {
+        drawChevron(
+            center: NSPoint(x: x + width / 2, y: y - 12),
+            pointsDown: false,
+            alpha: 0.28
+        )
+    }
+
+    private func drawChevron(center: NSPoint, pointsDown: Bool, alpha: CGFloat) {
+        let path = NSBezierPath()
+        let halfWidth: CGFloat = 7
+        let halfHeight: CGFloat = 3
+
+        if pointsDown {
+            path.move(to: NSPoint(x: center.x - halfWidth, y: center.y - halfHeight))
+            path.line(to: NSPoint(x: center.x, y: center.y + halfHeight))
+            path.line(to: NSPoint(x: center.x + halfWidth, y: center.y - halfHeight))
+        } else {
+            path.move(to: NSPoint(x: center.x - halfWidth, y: center.y + halfHeight))
+            path.line(to: NSPoint(x: center.x, y: center.y - halfHeight))
+            path.line(to: NSPoint(x: center.x + halfWidth, y: center.y + halfHeight))
+        }
+
+        NSColor(calibratedRed: 0.11, green: 0.15, blue: 0.18, alpha: alpha).setStroke()
+        path.lineWidth = 1.4
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        path.stroke()
+    }
+
+    private var tileGridOriginY: CGFloat {
+        PrototypeGeometry.padding + PrototypeGeometry.titleHeight + overflowIndicatorGutter
+    }
+
+    private var overflowIndicatorGutter: CGFloat {
+        CGFloat(PrototypeGeometry.metrics.verticalOverflowIndicatorAllowance / 2)
     }
 
     private func folderURL(from pasteboard: NSPasteboard) -> URL? {

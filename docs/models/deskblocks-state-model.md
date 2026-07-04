@@ -80,6 +80,10 @@ Resize invariants:
 - The persisted size must always be the snapped size.
 - The rendered tile size must remain equal to the configured tile metrics.
 - Minimum size must include at least one usable tile plus title/frame allowance.
+- Minimum rows for a requested tile count are derived from the current snapped column count, not from the original near-square creation layout.
+- Maximum resize size is capped by the visible screen bounds available from the block's current window position.
+- The visible viewport is capped at 10 full tile rows and 10 full tile columns.
+- If requested tiles exceed viewport capacity, hidden tiles remain reachable through transient scroll state rather than making the block grow offscreen.
 
 ## Move Lifecycle
 
@@ -136,6 +140,7 @@ Folder-reference invariants:
 - Dropping a folder creates or updates a DeskBlocks reference only.
 - The durable reference is bookmark data; the last known path is fallback/debug metadata only.
 - Dropping onto a tile stores the target tile index.
+- Magnetic hover state is transient UI state and must not be persisted.
 - Dropping a folder must not move the real folder.
 - Dropping a top-level Desktop folder follows the same reference-only rule.
 - Removing a tile reference must not delete or move the real folder.

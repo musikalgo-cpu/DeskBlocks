@@ -79,7 +79,7 @@ Magnetic tile placement is a future interaction candidate: when the user drags a
 
 This should be implemented as DeskBlocks accepting a folder reference through drag and drop, not as DeskBlocks manipulating the real Finder desktop icon position. The snap should feel gentle and predictable, and it must be possible to remove the reference from the tile without deleting or moving the underlying folder.
 
-This feature is not part of the current feasibility prototype. It should be documented now because it affects the future persistence model and the final app-stack decision.
+Current MVP behavior uses a small magnetic margin around visible tile slots and a subtle neutral hover treatment while a Finder folder is dragged near a valid target tile.
 
 ### Resize Behavior
 
@@ -108,6 +108,11 @@ MVP UX decisions:
 - Resize should use Apple-like window edge/corner behavior or subtle visible handles.
 - Block windows should not support maximize/zoom or minimize in the MVP; they are desktop organization surfaces, not document windows.
 - A block must never resize below the minimum snapped size needed to display its current tile count.
+- When a block is widened enough to fit the current tile count in fewer rows, empty trailing rows may be removed by reducing height.
+- A block viewport must show at most 10 full tile rows and at most 10 full tile columns.
+- If a block contains more tile slots than the current viewport can show, the block must show subtle overflow indicators and allow scrolling to hidden tiles.
+- Overflow indicators get dedicated vertical breathing room above and below the tile grid rather than overlapping tile content.
+- A block must not resize beyond the visible screen bounds from its current screen position.
 - Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
 - Users can add or delete tile slots in a block; deleting tiles must never reduce a block below one tile.
 - Block removal should use a context menu or a subtle hover/selection control.
@@ -132,6 +137,7 @@ Required MVP capabilities:
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
 - Place a folder reference into a visible tile through a minimal native interaction.
 - Place a folder reference by dragging a Finder folder onto a visible tile.
+- Show a subtle magnetic target highlight when a dragged Finder folder is near a valid tile.
 - Open and remove a folder reference from a visible tile without changing the Finder folder.
 - Provide a minimal way to edit a block title and remove a block.
 
@@ -310,7 +316,7 @@ MVP is successful when:
 - Should the current `112x104` point tile slot remain the MVP value after real folder-reference tiles or additional display setups are tested?
 - Should the current `desktopIconWindow + 1` level remain acceptable after longer daily-use testing or multi-monitor validation?
 - Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
-- Magnetic tile placement must wait until safe folder reference tiles are implemented and reviewed.
+- Magnetic placement currently covers subtle drag targeting and hover highlighting. Stronger animation, preview positioning, or non-tile-area snapping remains open.
 
 ## Confidence
 
