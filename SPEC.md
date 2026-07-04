@@ -295,7 +295,7 @@ MVP is successful when:
 - Should the current `desktopIconWindow + 1` level remain acceptable after longer daily-use testing or multi-monitor validation?
 - Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
 - Should folder references be stored as paths, aliases, bookmarks, or another macOS-native reference type?
-- Should magnetic tile placement be tested before or after the basic block MVP is proven?
+- Magnetic tile placement must wait until safe folder reference tiles are implemented and reviewed.
 
 ## Confidence
 

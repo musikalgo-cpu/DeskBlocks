@@ -1,0 +1,67 @@
+# MVP Review Gate: 2026-07-04
+
+## Result
+
+PASS. The current Swift/AppKit MVP is ready to use as the baseline before expanding into folder references or magnetic placement.
+
+## Verification
+
+- `swift run DeskBlocksCoreChecks` passed.
+- `swift build` passed.
+- Manual daily-use validation passed for multiple blocks, Finder/Desktop use, full-screen behavior, Spaces, Mission Control, quit, and relaunch.
+- Manual visual calibration passed with native macOS folder icons and `112x104` point tile slots.
+
+## SPEC Coverage
+
+The current MVP covers the required `SPEC.md` scope:
+
+- Create multiple named blocks through `File > New Block...`.
+- Choose initial tile count during creation.
+- Add and delete tile slots after creation.
+- Drag and resize blocks with whole-tile snapping.
+- Prevent resize states where current tiles disappear.
+- Persist title, position, size, and tile count.
+- Rename and remove blocks.
+- Keep tile size fixed.
+- Render native macOS folder icons and readable labels.
+- Preserve the rule that DeskBlocks does not own, move, copy, rename, delete, or reorganize Finder files.
+
+## ADR-002 Alignment
+
+The MVP remains aligned with ADR-002:
+
+- Swift/AppKit remains the accepted MVP stack.
+- `DeskBlocksCore` owns deterministic geometry, snapping, state, and invariants.
+- AppKit owns windows, pointer interaction, rendering, menus, and macOS desktop behavior.
+- The current desktop-overlay candidate remains `CGWindowLevelForKey(.desktopIconWindow) + 1`.
+- Electron and Tauri should not be revisited unless Swift/AppKit hits a concrete blocker.
+
+## Known Limitations
+
+- Mission Control does not treat DeskBlocks as a normal managed window; DeskBlocks remains on the desktop while other windows move forward. This remains acceptable for the MVP.
+- Multi-monitor behavior is untested because no second display is available.
+- Installed `.app` launch/relaunch behavior is untested; the current prototype runs through Swift Package Manager.
+- Display sleep/wake and display scaling/resolution behavior remain deferred.
+- Persistence is still plain JSON for the private prototype.
+- Folder references are placeholders only; real folder drag/drop and durable folder-reference storage are not implemented.
+- `Sources/DeskBlocksPrototype/main.swift` is close to the project review threshold for a single file. Before adding folder-reference UI, split AppKit window/menu/store/rendering responsibilities into smaller files or types.
+
+## Definition Of Done
+
+- Correctness: PASS for current MVP scope. Core checks and manual runtime validation passed.
+- Quality: PASS with one follow-up. The current AppKit prototype file should be decomposed before the next feature slice.
+- Integration: PASS for SwiftPM prototype flow. Packaging remains explicitly out of scope.
+- Documentation: PASS. SPEC, state model, ADRs, and MVP plan describe current behavior and limits.
+- Ship-readiness: PASS for private prototype use. Not ready for packaged distribution.
+
+## Next Feature Decision
+
+Next: implement Folder Reference Tiles before Magnetic Placement.
+
+Reasoning:
+
+- Magnetic placement depends on having a safe reference model first.
+- Folder references must prove that DeskBlocks can store and render folder identity without moving or owning Finder files.
+- The next slice should decide and document the reference representation, likely macOS security-scoped bookmarks or aliases, before any drag/drop magnet behavior.
+
+Do not implement magnetic placement until folder reference storage, rendering, removal, and persistence are working safely.

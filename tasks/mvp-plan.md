@@ -289,14 +289,20 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 **Description:** Review the MVP against `SPEC.md`, ADR-002, the state model, and the Definition of Done before expanding into folder-reference or magnetic placement work.
 
 **Acceptance criteria:**
-- [ ] MVP scope items are checked against `SPEC.md`.
-- [ ] Known limitations are documented.
-- [ ] Next post-MVP feature decision is explicit: folder references, magnetic placement, packaging, or visual polish.
+- [x] MVP scope items are checked against `SPEC.md`.
+- [x] Known limitations are documented.
+- [x] Next post-MVP feature decision is explicit: folder references, magnetic placement, packaging, or visual polish.
 
 **Verification:**
-- [ ] Run `swift run DeskBlocksCoreChecks`.
-- [ ] Run `swift build`.
-- [ ] Perform code/documentation review using `skills/code-review-and-quality/SKILL.md`.
+- [x] Run `swift run DeskBlocksCoreChecks`.
+- [x] Run `swift build`.
+- [x] Perform code/documentation review using `skills/code-review-and-quality/SKILL.md`.
+
+**Implementation notes:**
+- MVP review result is captured in `tasks/mvp-review-gate-2026-07-04.md`.
+- The MVP passes as a private SwiftPM prototype baseline.
+- Next feature decision: implement folder reference tiles before magnetic placement.
+- Technical follow-up before the next feature slice: split `Sources/DeskBlocksPrototype/main.swift` before adding folder-reference UI, because it is close to the single-file review threshold.
 
 **Dependencies:** Tasks 1-9
 

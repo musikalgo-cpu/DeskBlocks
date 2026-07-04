@@ -47,4 +47,4 @@
 - [x] Add block removal.
 - [x] Calibrate tile visuals for Finder readability.
 - [x] Run daily-use desktop validation.
-- [ ] Complete MVP review gate.
+- [x] Complete MVP review gate.
