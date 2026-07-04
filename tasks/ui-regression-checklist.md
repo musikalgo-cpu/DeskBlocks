@@ -37,11 +37,12 @@ Use this checklist after changes to AppKit window behavior, block rendering, til
 
 - [ ] Confirm block background is fully transparent outside frame, title, folder icons, labels, chevrons, and hover/drag affordances.
 - [ ] Confirm title and folder labels are pure white and readable on the user's desktop.
+- [ ] Change a block title color through the native color picker and confirm the title updates immediately.
 - [ ] Confirm magnetic hover feels subtle and neutral, not system-accent colored.
 - [ ] Confirm the block title remains centered while resizing.
 
 ## Persistence Smoke
 
 - [ ] Create, resize, scroll, place folders, quit, and relaunch.
-- [ ] Confirm persisted block title, position, size, tile count, and folder references restore correctly.
+- [ ] Confirm persisted block title, title color, position, size, tile count, and folder references restore correctly.
 - [ ] Confirm hidden tile references remain reachable through scrolling after relaunch.

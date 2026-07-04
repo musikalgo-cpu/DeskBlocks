@@ -443,6 +443,8 @@ private func testDeskBlockStateRoundTripsThroughJSON() {
         metrics: .prototype,
         origin: BlockPoint(x: 111, y: 222),
         proposedSize: BlockSize(width: 510, height: 410)
+    ).withTitleColor(
+        BlockColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 0.8)
     )
 
     do {
@@ -475,6 +477,7 @@ private func testDeskBlockStateDecodesLegacyJSONWithoutID() {
 
         check(decoded.id == .prototype, "expected legacy state to default to prototype block ID")
         check(decoded.title == "Legacy Prototype", "expected legacy title to decode")
+        check(decoded.titleColor == .white, "expected legacy title color to default to white")
         check(decoded.columns == 4, "expected legacy columns to decode")
         check(decoded.rows == 3, "expected legacy rows to decode")
         check(decoded.tileCount == 12, "expected legacy state to default tile count from grid capacity")
@@ -709,11 +712,13 @@ private func testDeskBlocksStateCanRemoveTheLastBlock() {
 
 private func testDeskBlockStateRenamesWithTrimmedTitle() {
     let state = DeskBlockState.prototypeDefault()
+        .withTitleColor(BlockColor(red: 0.9, green: 0.2, blue: 0.3, alpha: 1))
 
     let renamed = state.renamed(to: "  Projects  ")
 
     check(renamed.title == "Projects", "expected title to be trimmed")
     check(renamed.id == state.id, "expected ID to survive title edit")
+    check(renamed.titleColor == state.titleColor, "expected title color to survive title edit")
     check(renamed.frame == state.frame, "expected frame to survive title edit")
     check(renamed.columns == state.columns, "expected columns to survive title edit")
     check(renamed.rows == state.rows, "expected rows to survive title edit")
@@ -726,6 +731,41 @@ private func testDeskBlockStateIgnoresEmptyRenamedTitle() {
     let renamed = state.renamed(to: "   ")
 
     check(renamed == state, "expected empty title edit to keep existing state")
+}
+
+private func testDeskBlockStateUpdatesTitleColorWithoutChangingGeometryOrReferences() {
+    let state = DeskBlockState(
+        title: "Color Test",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 90, y: 120),
+            size: TileGridMetrics.prototype.contentSize(columns: 3, rows: 2)
+        ),
+        columns: 3,
+        rows: 2,
+        tileCount: 5,
+        tileReferences: [
+            TileReference(
+                id: "tile-a",
+                tileIndex: 1,
+                displayName: "Folder A",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-a",
+                    lastKnownPath: "/tmp/a"
+                )
+            )
+        ]
+    )
+
+    let updated = state.withTitleColor(BlockColor(red: 0.1, green: 0.2, blue: 0.3, alpha: 0.4))
+
+    check(updated.titleColor == BlockColor(red: 0.1, green: 0.2, blue: 0.3, alpha: 0.4), "expected title color to update")
+    check(updated.id == state.id, "expected ID to survive title color edit")
+    check(updated.title == state.title, "expected title text to survive title color edit")
+    check(updated.frame == state.frame, "expected frame to survive title color edit")
+    check(updated.columns == state.columns, "expected columns to survive title color edit")
+    check(updated.rows == state.rows, "expected rows to survive title color edit")
+    check(updated.tileCount == state.tileCount, "expected tile count to survive title color edit")
+    check(updated.tileReferences == state.tileReferences, "expected tile references to survive title color edit")
 }
 
 private func testTileReferenceDecodesLegacyStringFolderReference() {
@@ -789,6 +829,7 @@ testDeskBlocksStateIgnoresRemovalOfUnknownBlockID()
 testDeskBlocksStateCanRemoveTheLastBlock()
 testDeskBlockStateRenamesWithTrimmedTitle()
 testDeskBlockStateIgnoresEmptyRenamedTitle()
+testDeskBlockStateUpdatesTitleColorWithoutChangingGeometryOrReferences()
 testTileReferenceDecodesLegacyStringFolderReference()
 
 print("DeskBlocksCoreChecks passed")

@@ -13,6 +13,7 @@ final class DeskBlockView: NSView {
     var requestRemove: ((DeskBlockID) -> Void)?
     var requestAddTile: ((DeskBlockID) -> Void)?
     var requestDeleteTile: ((DeskBlockID) -> Void)?
+    var requestEditTitleColor: ((DeskBlockID) -> Void)?
     var requestChooseFolder: ((DeskBlockID, Int) -> Void)?
     var requestPlaceFolder: ((DeskBlockID, Int, URL) -> Void)?
     var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
@@ -141,6 +142,11 @@ final class DeskBlockView: NSView {
             action: #selector(chooseFolderFromContextMenu(_:)),
             keyEquivalent: ""
         )
+        let titleColorItem = NSMenuItem(
+            title: "Title Color...",
+            action: #selector(editTitleColorFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
         let openFolderItem = NSMenuItem(
             title: "Open Folder",
             action: #selector(openFolderFromContextMenu(_:)),
@@ -168,6 +174,7 @@ final class DeskBlockView: NSView {
         )
 
         renameItem.target = self
+        titleColorItem.target = self
         chooseFolderItem.target = self
         chooseFolderItem.representedObject = clickedTileIndex
         openFolderItem.target = self
@@ -178,6 +185,7 @@ final class DeskBlockView: NSView {
         deleteTileItem.target = self
         removeItem.target = self
         menu.addItem(renameItem)
+        menu.addItem(titleColorItem)
         menu.addItem(.separator())
         if clickedTileIndex != nil {
             if clickedTileReference != nil {
@@ -223,7 +231,7 @@ final class DeskBlockView: NSView {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 15, weight: .semibold),
-            .foregroundColor: NSColor.white,
+            .foregroundColor: state.titleColor.nsColor,
             .paragraphStyle: paragraphStyle
         ]
 
@@ -239,6 +247,10 @@ final class DeskBlockView: NSView {
 
     @objc private func removeFromContextMenu(_ sender: Any?) {
         requestRemove?(state.id)
+    }
+
+    @objc private func editTitleColorFromContextMenu(_ sender: Any?) {
+        requestEditTitleColor?(state.id)
     }
 
     @objc private func addTileFromContextMenu(_ sender: Any?) {

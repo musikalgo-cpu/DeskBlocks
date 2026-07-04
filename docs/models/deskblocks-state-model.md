@@ -22,6 +22,7 @@ DeskBlocks follows a deterministic-core, UI-shell shape:
 A block is valid only when:
 
 - It has a title.
+- It has a title color.
 - It has a frame with origin and size.
 - Its size corresponds to whole tile columns and rows.
 - Its column count and row count are at least the configured minimum.
@@ -122,6 +123,7 @@ Persistence invariants:
 - Loaded state must be normalized through the core snapping model before rendering.
 - Decode failure must not delete user files or Finder folders.
 - Future tile references must survive snapping, moving, resizing, and JSON round-trips.
+- Missing legacy title color data must decode to the default pure white title color.
 
 ## Future Folder Reference Lifecycle
 
@@ -183,7 +185,9 @@ Current code already covers:
 - `File > New Block...` is wired to create a snapped block with a unique ID, user-provided title, and a near-square grid derived from total tile count.
 - Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
 - Title editing preserves block identity, geometry, tile references, and persisted state.
+- Title color editing preserves block identity, geometry, tile references, and persisted state.
 - Rename behavior is guarded by `swift run DeskBlocksPrototype --rename-smoke "Title"`.
+- Title color persistence is guarded by `swift run DeskBlocksPrototype --title-color-smoke "1,0.5,0,1"`.
 - Block removal preserves non-removed blocks, allows an intentionally empty state, and never affects Finder files.
 - Remove behavior is guarded by `swift run DeskBlocksPrototype --remove-smoke`.
 - Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.

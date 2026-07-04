@@ -30,6 +30,26 @@ public struct BlockFrame: Codable, Equatable, Sendable {
     }
 }
 
+public struct BlockColor: Codable, Equatable, Sendable {
+    public let red: Double
+    public let green: Double
+    public let blue: Double
+    public let alpha: Double
+
+    public static let white = BlockColor(red: 1, green: 1, blue: 1, alpha: 1)
+
+    public init(red: Double, green: Double, blue: Double, alpha: Double = 1) {
+        self.red = Self.clamped(red)
+        self.green = Self.clamped(green)
+        self.blue = Self.clamped(blue)
+        self.alpha = Self.clamped(alpha)
+    }
+
+    private static func clamped(_ value: Double) -> Double {
+        min(1, max(0, value))
+    }
+}
+
 public struct DeskBlockID: Codable, Equatable, Hashable, Sendable {
     public let rawValue: String
 
@@ -112,6 +132,7 @@ public struct TileReference: Codable, Equatable, Sendable {
 public struct DeskBlockState: Codable, Equatable, Sendable {
     public let id: DeskBlockID
     public let title: String
+    public let titleColor: BlockColor
     public let frame: BlockFrame
     public let columns: Int
     public let rows: Int
@@ -129,6 +150,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     public init(
         id: DeskBlockID = .prototype,
         title: String,
+        titleColor: BlockColor = .white,
         frame: BlockFrame,
         columns: Int,
         rows: Int,
@@ -137,6 +159,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.title = title
+        self.titleColor = titleColor
         self.frame = frame
         self.columns = columns
         self.rows = rows
@@ -149,6 +172,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id
         case title
+        case titleColor
         case frame
         case columns
         case rows
@@ -161,6 +185,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
 
         id = try container.decodeIfPresent(DeskBlockID.self, forKey: .id) ?? .prototype
         title = try container.decode(String.self, forKey: .title)
+        titleColor = try container.decodeIfPresent(BlockColor.self, forKey: .titleColor) ?? .white
         frame = try container.decode(BlockFrame.self, forKey: .frame)
         columns = try container.decode(Int.self, forKey: .columns)
         rows = try container.decode(Int.self, forKey: .rows)
@@ -175,6 +200,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
 
         try container.encode(id, forKey: .id)
         try container.encode(title, forKey: .title)
+        try container.encode(titleColor, forKey: .titleColor)
         try container.encode(frame, forKey: .frame)
         try container.encode(columns, forKey: .columns)
         try container.encode(rows, forKey: .rows)
@@ -192,6 +218,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: .prototype,
             title: "DeskBlocks Prototype",
+            titleColor: .white,
             frame: BlockFrame(
                 origin: origin,
                 size: metrics.contentSize(columns: columns, rows: rows)
@@ -218,6 +245,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: id,
             title: title,
+            titleColor: titleColor,
             frame: BlockFrame(
                 origin: origin ?? frame.origin,
                 size: snapped.size
@@ -256,6 +284,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: id,
             title: title,
+            titleColor: titleColor,
             frame: frame,
             columns: columns,
             rows: rows,
@@ -272,6 +301,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: id,
             title: title,
+            titleColor: titleColor,
             frame: frame,
             columns: columns,
             rows: rows,
@@ -292,6 +322,7 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: id,
             title: title,
+            titleColor: titleColor,
             frame: BlockFrame(
                 origin: frame.origin,
                 size: metrics.contentSize(columns: nextColumns, rows: nextRows)
@@ -313,6 +344,24 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         return DeskBlockState(
             id: id,
             title: trimmedTitle,
+            titleColor: titleColor,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: tileReferences
+        )
+    }
+
+    public func withTitleColor(_ proposedTitleColor: BlockColor) -> DeskBlockState {
+        guard proposedTitleColor != titleColor else {
+            return self
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            titleColor: proposedTitleColor,
             frame: frame,
             columns: columns,
             rows: rows,

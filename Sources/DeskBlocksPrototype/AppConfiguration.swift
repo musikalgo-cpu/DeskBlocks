@@ -51,3 +51,25 @@ extension BlockFrame {
         )
     }
 }
+
+extension BlockColor {
+    init(_ color: NSColor) {
+        let resolvedColor = color.usingColorSpace(.deviceRGB) ?? NSColor.white
+
+        self.init(
+            red: resolvedColor.redComponent,
+            green: resolvedColor.greenComponent,
+            blue: resolvedColor.blueComponent,
+            alpha: resolvedColor.alphaComponent
+        )
+    }
+
+    var nsColor: NSColor {
+        NSColor(
+            calibratedRed: red,
+            green: green,
+            blue: blue,
+            alpha: alpha
+        )
+    }
+}

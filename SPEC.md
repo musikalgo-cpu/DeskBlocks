@@ -33,6 +33,7 @@ Primary success:
 A block is a visual desktop container with:
 
 - Title text.
+- Title color.
 - Visible border or frame.
 - Position on screen.
 - Width and height.
@@ -105,6 +106,7 @@ MVP UX decisions:
 - Blocks are visually transparent wherever there is no frame, text, icon, button, resize affordance, or explicit hover/selection UI.
 - Transparency is optical only for the MVP. Empty transparent block areas do not need to pass clicks through to Finder.
 - Blocks should be moved by dragging the title/frame area, not by relying on the empty transparent interior.
+- Block title color can be changed per block through a native macOS color picker and persists across relaunch.
 - Resize should use Apple-like window edge/corner behavior or subtle visible handles.
 - Block windows should not support maximize/zoom or minimize in the MVP; they are desktop organization surfaces, not document windows.
 - A block must never resize below the minimum snapped size needed to display its current tile count.
@@ -133,6 +135,7 @@ Required MVP capabilities:
 - Snap block size to whole tile rows and columns.
 - Prevent resize states where current tile slots disappear because the block capacity is too small.
 - Persist block title, position, size, and tile count across app restarts.
+- Persist block title color across app restarts.
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
 - Place a folder reference into a visible tile through a minimal native interaction.
@@ -183,6 +186,8 @@ Folder references use bookmark-backed persistence as accepted in `docs/decisions
 
 Local private app packaging uses an unsigned app bundle as accepted in `docs/decisions/ADR-004-local-unsigned-app-bundle.md`.
 
+Block title colors use app-owned RGBA persistence as accepted in `docs/decisions/ADR-005-persist-block-title-colors.md`.
+
 ## Commands
 
 Current prototype commands:
@@ -193,6 +198,7 @@ Current prototype commands:
 - Build local `.app`: `scripts/build-local-app.sh`
 - Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
 - Smoke folder-reference removal: `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`
+- Smoke title-color persistence: `swift run DeskBlocksPrototype --title-color-smoke "1,0.5,0,1"`
 
 No lint command exists yet.
 

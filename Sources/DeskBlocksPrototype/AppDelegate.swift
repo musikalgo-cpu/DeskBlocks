@@ -9,9 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var windowsByBlockID: [DeskBlockID: NSWindow] = [:]
     private var blockViewsByBlockID: [DeskBlockID: DeskBlockView] = [:]
     private var blockIDsApplyingSnappedFrame: Set<DeskBlockID> = []
+    private let titleColorPanel = NSColorPanel.shared
+    private var titleColorEditingBlockID: DeskBlockID?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
+        configureTitleColorPanel()
 
         state = loadInitialState()
         renderAllBlockWindows()
@@ -39,6 +42,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
 
                 self?.rename(blockID: blockID, to: renameSmokeTitle)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
+        if let titleColorSmokeValue = commandLineValue(after: "--title-color-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard
+                    let self,
+                    let blockID = self.state.blocks.first?.id,
+                    let color = self.blockColor(from: titleColorSmokeValue)
+                else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self.updateTitleColor(for: blockID, to: color)
                 NSApplication.shared.terminate(nil)
             }
             return
@@ -226,6 +246,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             action: #selector(renameSelectedBlock(_:)),
             keyEquivalent: ""
         )
+        let titleColorItem = NSMenuItem(
+            title: "Title Color...",
+            action: #selector(editSelectedBlockTitleColor(_:)),
+            keyEquivalent: ""
+        )
         let addTileItem = NSMenuItem(
             title: "Add Tile",
             action: #selector(addTileToSelectedBlock(_:)),
@@ -256,10 +281,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         fileMenuItem.submenu = fileMenu
 
         renameBlockItem.target = self
+        titleColorItem.target = self
         addTileItem.target = self
         deleteTileItem.target = self
         removeBlockItem.target = self
         editMenu.addItem(renameBlockItem)
+        editMenu.addItem(titleColorItem)
         editMenu.addItem(.separator())
         editMenu.addItem(addTileItem)
         editMenu.addItem(deleteTileItem)
@@ -303,6 +330,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         blockView.requestRemove = { [weak self] blockID in
             self?.showRemoveConfirmation(for: blockID)
+        }
+        blockView.requestEditTitleColor = { [weak self] blockID in
+            self?.showTitleColorPanel(for: blockID)
         }
         blockView.requestAddTile = { [weak self] blockID in
             self?.addTile(to: blockID)
@@ -525,6 +555,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showRemoveConfirmation(for: blockID)
     }
 
+    @objc private func editSelectedBlockTitleColor(_ sender: Any?) {
+        guard
+            let keyWindow = NSApplication.shared.keyWindow,
+            let blockID = blockID(for: keyWindow)
+        else {
+            NSSound.beep()
+            return
+        }
+
+        showTitleColorPanel(for: blockID)
+    }
+
     @objc private func addTileToSelectedBlock(_ sender: Any?) {
         guard
             let keyWindow = NSApplication.shared.keyWindow,
@@ -593,6 +635,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockViewsByBlockID[blockID]?.state = renamedBlock
         windowsByBlockID[blockID]?.title = renamedBlock.title
         store.save(state)
+    }
+
+    private func configureTitleColorPanel() {
+        titleColorPanel.setTarget(self)
+        titleColorPanel.setAction(#selector(titleColorPanelChanged(_:)))
+        titleColorPanel.isContinuous = true
+        titleColorPanel.showsAlpha = true
+    }
+
+    private func showTitleColorPanel(for blockID: DeskBlockID) {
+        guard let block = state.block(id: blockID) else {
+            return
+        }
+
+        titleColorEditingBlockID = blockID
+        titleColorPanel.color = block.titleColor.nsColor
+        titleColorPanel.orderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func titleColorPanelChanged(_ sender: NSColorPanel) {
+        guard let blockID = titleColorEditingBlockID else {
+            return
+        }
+
+        updateTitleColor(for: blockID, to: BlockColor(sender.color))
+    }
+
+    private func updateTitleColor(for blockID: DeskBlockID, to proposedColor: BlockColor) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let updatedBlock = currentBlock.withTitleColor(proposedColor)
+
+        guard updatedBlock != currentBlock else {
+            return
+        }
+
+        update(block: updatedBlock)
     }
 
     private func addTile(to blockID: DeskBlockID) {
@@ -810,6 +892,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         updateStateFromAllWindows(save: false)
         state = state.removingBlock(id: blockID)
+        if titleColorEditingBlockID == blockID {
+            titleColorEditingBlockID = nil
+        }
         blockViewsByBlockID.removeValue(forKey: blockID)
         windowsByBlockID.removeValue(forKey: blockID)
         window.delegate = nil
@@ -896,5 +981,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockIDsApplyingSnappedFrame.insert(blockID)
         window.setFrame(snappedFrame, display: true)
         blockIDsApplyingSnappedFrame.remove(blockID)
+    }
+
+    private func blockColor(from argument: String) -> BlockColor? {
+        let components = argument
+            .split(separator: ",")
+            .map { substring in
+                Double(substring.trimmingCharacters(in: .whitespaces))
+            }
+
+        guard components.count == 4, components.allSatisfy({ $0 != nil }) else {
+            return nil
+        }
+
+        return BlockColor(
+            red: components[0] ?? 1,
+            green: components[1] ?? 1,
+            blue: components[2] ?? 1,
+            alpha: components[3] ?? 1
+        )
     }
 }
