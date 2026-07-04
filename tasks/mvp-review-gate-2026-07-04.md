@@ -10,6 +10,7 @@ PASS. The current Swift/AppKit MVP is ready to use as the baseline before expand
 - `swift build` passed.
 - Manual daily-use validation passed for multiple blocks, Finder/Desktop use, full-screen behavior, Spaces, Mission Control, quit, and relaunch.
 - Manual visual calibration passed with native macOS folder icons and `112x104` point tile slots.
+- Future UI changes should use `tasks/ui-regression-checklist.md` before being considered complete.
 
 ## SPEC Coverage
 
