@@ -471,7 +471,11 @@ final class DeskBlockView: NSView {
     }
 
     private var maxTileScrollOffset: Int {
-        max(0, state.tileCount - max(1, state.tileCapacity))
+        TileViewport(
+            tileCount: state.tileCount,
+            columns: state.columns,
+            rows: state.rows
+        ).maximumRowAlignedScrollOffset
     }
 
     private var canScrollBackward: Bool {

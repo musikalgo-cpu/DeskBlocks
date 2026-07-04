@@ -162,6 +162,20 @@ private func testTileCountLayoutEnforcesMinimumOneTile() {
     check(layout.rows == 1, "expected minimum layout to use 1 row")
 }
 
+private func testTileViewportRowAlignedScrollOffsetReachesPartialLastRow() {
+    let viewport = TileViewport(tileCount: 23, columns: 5, rows: 4)
+
+    check(viewport.capacity == 20, "expected viewport capacity")
+    check(viewport.maximumRowAlignedScrollOffset == 5, "expected scroll offset to reach partial last row")
+}
+
+private func testTileViewportRowAlignedScrollOffsetIsZeroWhenAllTilesFit() {
+    let viewport = TileViewport(tileCount: 11, columns: 10, rows: 2)
+
+    check(viewport.capacity == 20, "expected viewport capacity to fit all tiles")
+    check(viewport.maximumRowAlignedScrollOffset == 0, "expected no scroll offset when all tiles fit")
+}
+
 private func testDeskBlockStateKeepsFutureTileReferencesInTheModel() {
     let state = DeskBlockState.prototypeDefault()
 
@@ -534,6 +548,51 @@ private func testDeskBlocksStateSnapsEveryBlockAndPreservesIDs() {
     check(snapped.blocks[1].rows == 1, "expected second block to normalize to minimum rows")
 }
 
+private func testDeskBlocksStateSnapsEveryBlockWithinMaximumViewport() {
+    let metrics = TileGridMetrics.prototype
+    let maximumSize = metrics.contentSize(columns: 2, rows: 2)
+    let state = DeskBlocksState(blocks: [
+        DeskBlockState(
+            id: DeskBlockID("many"),
+            title: "Many",
+            frame: BlockFrame(
+                origin: BlockPoint(x: 10, y: 20),
+                size: metrics.contentSize(columns: 1, rows: 30)
+            ),
+            columns: 1,
+            rows: 30,
+            tileCount: 30
+        )
+    ])
+
+    let snapped = state.snapped(metrics: metrics, fittingWithin: maximumSize)
+
+    check(snapped.blocks[0].columns <= 2, "expected snapped block to fit maximum columns")
+    check(snapped.blocks[0].rows <= 2, "expected snapped block to fit maximum rows")
+    check(snapped.blocks[0].tileCount == 30, "expected requested tile count to survive viewport snapping")
+}
+
+private func testDeskBlockStateSnapsWithinMaximumViewport() {
+    let metrics = TileGridMetrics.prototype
+    let maximumSize = metrics.contentSize(columns: 2, rows: 2)
+    let state = DeskBlockState(
+        title: "Many",
+        frame: BlockFrame(
+            origin: BlockPoint(x: 10, y: 20),
+            size: metrics.contentSize(columns: 1, rows: 30)
+        ),
+        columns: 1,
+        rows: 30,
+        tileCount: 30
+    )
+
+    let snapped = state.snapped(metrics: metrics, fittingWithin: maximumSize)
+
+    check(snapped.columns <= 2, "expected block to fit maximum columns")
+    check(snapped.rows <= 2, "expected block to fit maximum rows")
+    check(snapped.tileCount == 30, "expected requested tile count to survive viewport snapping")
+}
+
 private func testDeskBlocksStateRoundTripsThroughJSON() {
     let state = DeskBlocksState(blocks: [
         DeskBlockState.prototypeDefault(),
@@ -703,6 +762,8 @@ testTileSizeRemainsUnchangedAcrossSnapping()
 testTileCountLayoutUsesPerfectSquaresWhenPossible()
 testTileCountLayoutAddsColumnsBeforeRowsForNonSquares()
 testTileCountLayoutEnforcesMinimumOneTile()
+testTileViewportRowAlignedScrollOffsetReachesPartialLastRow()
+testTileViewportRowAlignedScrollOffsetIsZeroWhenAllTilesFit()
 testDeskBlockStateKeepsFutureTileReferencesInTheModel()
 testDeskBlockStateSeparatesRequestedTilesFromFrameCapacity()
 testDeskBlockStateSnappingDoesNotHideRequestedTiles()
@@ -719,6 +780,8 @@ testDeskBlockStateRoundTripsThroughJSON()
 testDeskBlockStateDecodesLegacyJSONWithoutID()
 testDeskBlocksStateRepresentsMultipleBlocksWithStableIDs()
 testDeskBlocksStateSnapsEveryBlockAndPreservesIDs()
+testDeskBlocksStateSnapsEveryBlockWithinMaximumViewport()
+testDeskBlockStateSnapsWithinMaximumViewport()
 testDeskBlocksStateRoundTripsThroughJSON()
 testDeskBlocksStateAppendsAndUpdatesBlocksByID()
 testDeskBlocksStateRemovesBlocksByID()

@@ -368,9 +368,12 @@ public struct DeskBlocksState: Codable, Equatable, Sendable {
         ])
     }
 
-    public func snapped(metrics: TileGridMetrics) -> DeskBlocksState {
+    public func snapped(
+        metrics: TileGridMetrics,
+        fittingWithin maximumSize: BlockSize? = nil
+    ) -> DeskBlocksState {
         DeskBlocksState(blocks: blocks.map { block in
-            block.snapped(metrics: metrics)
+            block.snapped(metrics: metrics, fittingWithin: maximumSize)
         })
     }
 
@@ -428,6 +431,29 @@ public struct TileGridLayout: Equatable, Sendable {
 
     public var capacity: Int {
         columns * rows
+    }
+}
+
+public struct TileViewport: Equatable, Sendable {
+    public let tileCount: Int
+    public let columns: Int
+    public let rows: Int
+
+    public init(tileCount: Int, columns: Int, rows: Int) {
+        self.tileCount = max(1, tileCount)
+        self.columns = max(1, columns)
+        self.rows = max(1, rows)
+    }
+
+    public var capacity: Int {
+        columns * rows
+    }
+
+    public var maximumRowAlignedScrollOffset: Int {
+        let lastTileRow = (tileCount - 1) / columns
+        let maximumFirstVisibleRow = max(0, lastTileRow - rows + 1)
+
+        return maximumFirstVisibleRow * columns
     }
 }
 

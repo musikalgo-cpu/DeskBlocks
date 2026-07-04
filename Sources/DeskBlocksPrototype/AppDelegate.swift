@@ -274,11 +274,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func loadInitialState() -> DeskBlocksState {
+        let maximumViewportSize = maximumTileViewportContentSize()
+
         guard let loadedState = store.load() else {
-            return DeskBlocksState.prototypeDefault().snapped(metrics: PrototypeGeometry.metrics)
+            return DeskBlocksState.prototypeDefault()
+                .snapped(metrics: PrototypeGeometry.metrics, fittingWithin: maximumViewportSize)
         }
 
-        return loadedState.snapped(metrics: PrototypeGeometry.metrics)
+        return loadedState.snapped(metrics: PrototypeGeometry.metrics, fittingWithin: maximumViewportSize)
     }
 
     private func renderAllBlockWindows() {
@@ -465,7 +468,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func createBlock(title: String, tileCount: Int) {
         let newBlock = makeNewBlock(title: title, tileCount: tileCount)
 
-        state = state.appending(block: newBlock).snapped(metrics: PrototypeGeometry.metrics)
+        state = state
+            .appending(block: newBlock)
+            .snapped(
+                metrics: PrototypeGeometry.metrics,
+                fittingWithin: maximumTileViewportContentSize()
+            )
         renderWindow(for: newBlock)
         store.save(state)
     }
@@ -738,16 +746,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
-        state = state.updating(block: updatedBlock)
-        blockViewsByBlockID[updatedBlock.id]?.state = updatedBlock
-        window.title = updatedBlock.title
-        window.minSize = minimumFrameSize(for: updatedBlock, in: window)
+        let maximumSize = maximumContentSize(for: window)
+        let normalizedBlock = updatedBlock.snapped(
+            metrics: PrototypeGeometry.metrics,
+            proposedSize: updatedBlock.frame.size,
+            fittingWithin: maximumSize
+        )
+
+        state = state.updating(block: normalizedBlock)
+        blockViewsByBlockID[normalizedBlock.id]?.state = normalizedBlock
+        window.title = normalizedBlock.title
+        window.minSize = minimumFrameSize(for: normalizedBlock, in: window)
 
         let contentRect = window.contentRect(forFrameRect: window.frame)
         let minimumContentSize = PrototypeGeometry.metrics.snappedSize(
             for: BlockSize(contentRect.size),
-            containingAtLeastTileCount: updatedBlock.tileCount,
-            fittingWithin: maximumContentSize(for: window)
+            containingAtLeastTileCount: normalizedBlock.tileCount,
+            fittingWithin: maximumSize
         ).size
 
         if BlockSize(contentRect.size) != minimumContentSize {
