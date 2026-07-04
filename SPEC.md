@@ -131,6 +131,7 @@ Required MVP capabilities:
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
 - Place a folder reference into a visible tile through a minimal native interaction.
+- Place a folder reference by dragging a Finder folder onto a visible tile.
 - Open and remove a folder reference from a visible tile without changing the Finder folder.
 - Provide a minimal way to edit a block title and remove a block.
 

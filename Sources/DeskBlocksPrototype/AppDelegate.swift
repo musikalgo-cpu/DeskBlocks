@@ -307,6 +307,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockView.requestChooseFolder = { [weak self] blockID, tileIndex in
             self?.showChooseFolderPanel(for: blockID, tileIndex: tileIndex)
         }
+        blockView.requestPlaceFolder = { [weak self] blockID, tileIndex, folderURL in
+            self?.placeFolderReference(folderURL: folderURL, in: blockID, at: tileIndex)
+        }
         blockView.requestOpenFolder = { [weak self] blockID, tileIndex in
             self?.openFolderReference(in: blockID, at: tileIndex)
         }

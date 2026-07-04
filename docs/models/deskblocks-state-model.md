@@ -183,6 +183,7 @@ Current code already covers:
 - Remove behavior is guarded by `swift run DeskBlocksPrototype --remove-smoke`.
 - Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.
 - Folder references can be placed from a tile context menu through a native folder picker.
+- Finder folder drops onto visible tiles use the same bookmark-backed placement path as the folder picker.
 - Folder reference bookmark creation is guarded by `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`.
 - Referenced folders can be opened from a tile context menu or by double-clicking a referenced tile.
 - Folder references can be removed from a tile context menu without removing the tile or changing Finder files.

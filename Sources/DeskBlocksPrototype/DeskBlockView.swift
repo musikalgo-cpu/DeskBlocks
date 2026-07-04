@@ -13,6 +13,7 @@ final class DeskBlockView: NSView {
     var requestAddTile: ((DeskBlockID) -> Void)?
     var requestDeleteTile: ((DeskBlockID) -> Void)?
     var requestChooseFolder: ((DeskBlockID, Int) -> Void)?
+    var requestPlaceFolder: ((DeskBlockID, Int, URL) -> Void)?
     var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
     var requestRemoveFolderReference: ((DeskBlockID, Int) -> Void)?
 
@@ -28,6 +29,7 @@ final class DeskBlockView: NSView {
     init(state: DeskBlockState) {
         self.state = state
         super.init(frame: NSRect(origin: .zero, size: state.frame.size.nsSize))
+        registerForDraggedTypes([.fileURL])
     }
 
     required init?(coder: NSCoder) {
@@ -50,6 +52,36 @@ final class DeskBlockView: NSView {
         }
 
         super.mouseDown(with: event)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard folderURL(from: sender.draggingPasteboard) != nil, tileIndex(at: convert(sender.draggingLocation, from: nil)) != nil else {
+            return []
+        }
+
+        return dragOperation(for: sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard folderURL(from: sender.draggingPasteboard) != nil, tileIndex(at: convert(sender.draggingLocation, from: nil)) != nil else {
+            return []
+        }
+
+        return dragOperation(for: sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let eventLocation = convert(sender.draggingLocation, from: nil)
+
+        guard
+            let tileIndex = tileIndex(at: eventLocation),
+            let folderURL = folderURL(from: sender.draggingPasteboard)
+        else {
+            return false
+        }
+
+        requestPlaceFolder?(state.id, tileIndex, folderURL)
+        return true
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -304,5 +336,45 @@ final class DeskBlockView: NSView {
         }
 
         return tileIndex
+    }
+
+    private func folderURL(from pasteboard: NSPasteboard) -> URL? {
+        if let urls = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL], let folderURL = urls.first(where: isFolderURL) {
+            return folderURL
+        }
+
+        let filenamesPasteboardType = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+        guard let paths = pasteboard.propertyList(forType: filenamesPasteboardType) as? [String] else {
+            return nil
+        }
+
+        return paths
+            .map { URL(fileURLWithPath: $0) }
+            .first(where: isFolderURL)
+    }
+
+    private func isFolderURL(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+    }
+
+    private func dragOperation(for sender: NSDraggingInfo) -> NSDragOperation {
+        let sourceMask = sender.draggingSourceOperationMask
+
+        if sourceMask.contains(.copy) {
+            return .copy
+        }
+
+        if sourceMask.contains(.generic) {
+            return .generic
+        }
+
+        if sourceMask.contains(.link) {
+            return .link
+        }
+
+        return []
     }
 }
