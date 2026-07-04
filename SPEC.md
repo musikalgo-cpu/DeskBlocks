@@ -310,7 +310,6 @@ MVP is successful when:
 - Should the current `112x104` point tile slot remain the MVP value after real folder-reference tiles or additional display setups are tested?
 - Should the current `desktopIconWindow + 1` level remain acceptable after longer daily-use testing or multi-monitor validation?
 - Should persistence remain plain JSON for the private MVP, or move to a macOS-native format later?
-- Should folder references be stored as paths, aliases, bookmarks, or another macOS-native reference type?
 - Magnetic tile placement must wait until safe folder reference tiles are implemented and reviewed.
 
 ## Confidence
@@ -320,4 +319,4 @@ Confidence score: 88%.
 Reason:
 
 - Product intent, MVP direction, non-goals, accepted MVP stack, and first technical risk are clear from the existing project conversation, feasibility evidence, `AGENTS.md`, and ADR-002.
-- Real folder-reference representation, longer daily-use window behavior, multi-monitor behavior, and any later persistence-format change remain unresolved because they require focused implementation evidence rather than guessing.
+- Longer daily-use window behavior, multi-monitor behavior, magnetic tile placement, and any later persistence-store change remain unresolved because they require focused implementation evidence rather than guessing.

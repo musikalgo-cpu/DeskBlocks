@@ -43,7 +43,7 @@ The MVP remains aligned with ADR-002:
 - Installed `.app` launch/relaunch behavior is untested; the current prototype runs through Swift Package Manager.
 - Display sleep/wake and display scaling/resolution behavior remain deferred.
 - Persistence is still plain JSON for the private prototype.
-- Folder references are placeholders only; real folder drag/drop and durable folder-reference storage are not implemented.
+- Folder references were placeholders at the MVP review point; they now have follow-up implementation through bookmark-backed storage, rendering, removal, persistence, and basic drag-and-drop.
 - AppKit prototype responsibilities have been split into focused files for configuration, persistence, rendering, orchestration, and the executable entry point. Keep future folder-reference UI in this split shape instead of rebuilding a monolithic file.
 
 ## Definition Of Done
@@ -62,6 +62,6 @@ Reasoning:
 
 - Magnetic placement depends on having a safe reference model first.
 - Folder references must prove that DeskBlocks can store and render folder identity without moving or owning Finder files.
-- The next slice should decide and document the reference representation, likely macOS security-scoped bookmarks or aliases, before any drag/drop magnet behavior.
+- ADR-003 decided bookmark-backed folder references before drag/drop magnet behavior.
 
-Do not implement magnetic placement until folder reference storage, rendering, removal, and persistence are working safely.
+Folder reference storage, rendering, removal, persistence, and basic drag-and-drop now exist. Do not implement magnetic placement until the current folder-reference behavior has been reviewed as a stable baseline.
