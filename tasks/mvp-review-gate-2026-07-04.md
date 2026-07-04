@@ -44,12 +44,12 @@ The MVP remains aligned with ADR-002:
 - Display sleep/wake and display scaling/resolution behavior remain deferred.
 - Persistence is still plain JSON for the private prototype.
 - Folder references are placeholders only; real folder drag/drop and durable folder-reference storage are not implemented.
-- `Sources/DeskBlocksPrototype/main.swift` is close to the project review threshold for a single file. Before adding folder-reference UI, split AppKit window/menu/store/rendering responsibilities into smaller files or types.
+- AppKit prototype responsibilities have been split into focused files for configuration, persistence, rendering, orchestration, and the executable entry point. Keep future folder-reference UI in this split shape instead of rebuilding a monolithic file.
 
 ## Definition Of Done
 
 - Correctness: PASS for current MVP scope. Core checks and manual runtime validation passed.
-- Quality: PASS with one follow-up. The current AppKit prototype file should be decomposed before the next feature slice.
+- Quality: PASS. The AppKit prototype has been decomposed before the next feature slice.
 - Integration: PASS for SwiftPM prototype flow. Packaging remains explicitly out of scope.
 - Documentation: PASS. SPEC, state model, ADRs, and MVP plan describe current behavior and limits.
 - Ship-readiness: PASS for private prototype use. Not ready for packaged distribution.

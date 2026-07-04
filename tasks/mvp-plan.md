@@ -302,7 +302,7 @@ Build the first real Swift/AppKit MVP from the proven feasibility prototype. The
 - MVP review result is captured in `tasks/mvp-review-gate-2026-07-04.md`.
 - The MVP passes as a private SwiftPM prototype baseline.
 - Next feature decision: implement folder reference tiles before magnetic placement.
-- Technical follow-up before the next feature slice: split `Sources/DeskBlocksPrototype/main.swift` before adding folder-reference UI, because it is close to the single-file review threshold.
+- Technical follow-up completed: the AppKit prototype source is split by configuration, persistence, rendering, orchestration, and executable entry point before folder-reference UI work begins.
 
 **Dependencies:** Tasks 1-9
 

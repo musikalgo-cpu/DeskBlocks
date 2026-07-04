@@ -203,6 +203,11 @@ Current intended structure:
 - `Sources/DeskBlocksCore/` - pure Swift geometry and snapping logic.
 - `Sources/DeskBlocksCoreChecks/` - executable checks for grid and snapping invariants.
 - `Sources/DeskBlocksPrototype/` - current Swift/AppKit MVP prototype source.
+  - `AppConfiguration.swift` - overlay level, prototype geometry, and AppKit/Core conversion helpers.
+  - `PrototypeStateStore.swift` - JSON load/save for the private prototype.
+  - `DeskBlockView.swift` - block rendering, tile rendering, and block context menu.
+  - `AppDelegate.swift` - AppKit lifecycle, menus, dialogs, windows, and state orchestration.
+  - `DeskBlocksPrototype.swift` - executable entry point.
 - `docs/decisions/` - ADRs for durable technical choices.
 - `docs/models/` - lightweight product and state models that clarify invariants.
 - `tasks/` - implementation plans, task checklists, and feasibility evidence.
