@@ -539,6 +539,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.canCreateDirectories = false
         panel.prompt = "Choose"
         panel.message = "Choose a folder for this DeskBlocks tile."
+        panel.directoryURL = FileManager.default.urls(
+            for: .desktopDirectory,
+            in: .userDomainMask
+        ).first
 
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let folderURL = panel.url else {
