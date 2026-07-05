@@ -71,6 +71,9 @@ When a folder reference is placed in a tile:
 - DeskBlocks may store an optional plain-text note for the folder reference as app-owned metadata.
 - DeskBlocks renders the folder as a tile item inside the block.
 - DeskBlocks can open the referenced folder through the system workspace.
+- DeskBlocks can move a folder reference within the same block by dragging it from one tile to another.
+- Moving a folder reference onto an empty tile leaves the source tile empty; moving it onto an occupied tile swaps the two references.
+- Moving a folder reference preserves its app-owned note and must not move, rename, copy, delete, or reorganize the underlying Finder folder.
 - Moving the block moves the rendered tile item with the block.
 - Resizing the block may change which tile slots are visible or available, but must not scale the tile item.
 - Removing a folder reference clears only the DeskBlocks tile reference.
@@ -151,6 +154,7 @@ Required MVP capabilities:
 - Place a folder reference by dragging a Finder folder onto a visible tile.
 - Show a subtle magnetic target highlight when a dragged Finder folder is near a valid tile.
 - Open and remove a folder reference from a visible tile without changing the Finder folder.
+- Move a folder reference within a block by dragging it between visible tiles without changing the Finder folder.
 - Add, edit, view, persist, and remove an optional note on a folder reference without changing the Finder folder.
 - Provide a minimal way to edit a block title and remove a block.
 

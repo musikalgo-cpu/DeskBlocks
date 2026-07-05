@@ -420,6 +420,84 @@ private func testDeskBlockStateReplacesFolderReferenceWithoutKeepingOldNote() {
     check(updated.tileReference(at: 2)?.note == nil, "expected replacement reference not to keep old note")
 }
 
+private func testDeskBlockStateMovesFolderReferenceToEmptyTile() {
+    let state = DeskBlockState.prototypeDefault().placingTileReference(
+        TileReference(
+            id: "tile-projects",
+            tileIndex: 0,
+            displayName: "Projects",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-projects",
+                lastKnownPath: "/Users/example/Desktop/Projects"
+            ),
+            note: "Active work"
+        ),
+        at: 2
+    )
+
+    let updated = state.movingTileReference(from: 2, to: 5)
+
+    check(updated.tileReference(at: 2) == nil, "expected source tile to become empty")
+    check(updated.tileReference(at: 5)?.id == "tile-projects", "expected reference to move to destination tile")
+    check(updated.tileReference(at: 5)?.note == "Active work", "expected moved reference to preserve note")
+    check(updated.tileReferences.count == 1, "expected move to preserve reference count")
+}
+
+private func testDeskBlockStateSwapsFolderReferencesWhenDestinationIsOccupied() {
+    let state = DeskBlockState.prototypeDefault()
+        .placingTileReference(
+            TileReference(
+                id: "tile-projects",
+                tileIndex: 0,
+                displayName: "Projects",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-projects",
+                    lastKnownPath: "/Users/example/Desktop/Projects"
+                ),
+                note: "Active work"
+            ),
+            at: 2
+        )
+        .placingTileReference(
+            TileReference(
+                id: "tile-archive",
+                tileIndex: 0,
+                displayName: "Archive",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-archive",
+                    lastKnownPath: "/Users/example/Desktop/Archive"
+                )
+            ),
+            at: 5
+        )
+
+    let updated = state.movingTileReference(from: 2, to: 5)
+
+    check(updated.tileReference(at: 5)?.id == "tile-projects", "expected source reference to move to destination")
+    check(updated.tileReference(at: 5)?.note == "Active work", "expected swapped source reference to preserve note")
+    check(updated.tileReference(at: 2)?.id == "tile-archive", "expected destination reference to move to source")
+    check(updated.tileReferences.count == 2, "expected swap to preserve both references")
+}
+
+private func testDeskBlockStateIgnoresInvalidFolderReferenceMove() {
+    let state = DeskBlockState.prototypeDefault().placingTileReference(
+        TileReference(
+            id: "tile-projects",
+            tileIndex: 0,
+            displayName: "Projects",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-projects",
+                lastKnownPath: "/Users/example/Desktop/Projects"
+            )
+        ),
+        at: 2
+    )
+
+    check(state.movingTileReference(from: 2, to: 2) == state, "expected same-tile move to leave state unchanged")
+    check(state.movingTileReference(from: 8, to: 2) == state, "expected missing source reference to leave state unchanged")
+    check(state.movingTileReference(from: 2, to: state.tileCount) == state, "expected out-of-range destination to leave state unchanged")
+}
+
 private func testDeskBlockStateKeepsOnlyOneReferencePerTileIndex() {
     let state = DeskBlockState(
         title: "Work",
@@ -1009,6 +1087,9 @@ testDeskBlockStateUpdatesFolderReferenceNote()
 testDeskBlockStateClearsFolderReferenceNoteForEmptyText()
 testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount()
 testDeskBlockStateReplacesFolderReferenceWithoutKeepingOldNote()
+testDeskBlockStateMovesFolderReferenceToEmptyTile()
+testDeskBlockStateSwapsFolderReferencesWhenDestinationIsOccupied()
+testDeskBlockStateIgnoresInvalidFolderReferenceMove()
 testDeskBlockStateKeepsOnlyOneReferencePerTileIndex()
 testDeskBlockStateDropsReferencesWhenTileIsRemoved()
 testDeskBlockStateRemovesFolderReferenceWithoutRemovingTile()

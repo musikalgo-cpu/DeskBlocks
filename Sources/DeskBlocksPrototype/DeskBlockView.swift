@@ -6,7 +6,21 @@ private final class FlippedNotePopoverView: NSView {
     override var isFlipped: Bool { true }
 }
 
-final class DeskBlockView: NSView {
+final class DeskBlockView: NSView, NSDraggingSource {
+    private struct TileDragPayload: Codable {
+        let blockIDRawValue: String
+        let tileIndex: Int
+    }
+
+    private struct PendingTileDrag {
+        let tileIndex: Int
+        let mouseDownLocation: NSPoint
+    }
+
+    private static let tileReferenceDragPasteboardType = NSPasteboard.PasteboardType(
+        "local.deskblocks.tile-reference"
+    )
+
     var state: DeskBlockState {
         didSet {
             clampTileScrollOffset()
@@ -26,8 +40,10 @@ final class DeskBlockView: NSView {
     var requestRemoveFolderReference: ((DeskBlockID, Int) -> Void)?
     var requestEditFolderNote: ((DeskBlockID, Int) -> Void)?
     var requestRemoveFolderNote: ((DeskBlockID, Int) -> Void)?
+    var requestMoveFolderReference: ((DeskBlockID, Int, Int) -> Void)?
 
     private var notePopover: NSPopover?
+    private var pendingTileDrag: PendingTileDrag?
     private var magneticTargetTileIndex: Int? {
         didSet {
             if magneticTargetTileIndex != oldValue {
@@ -57,7 +73,7 @@ final class DeskBlockView: NSView {
     init(state: DeskBlockState) {
         self.state = state
         super.init(frame: NSRect(origin: .zero, size: state.frame.size.nsSize))
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, Self.tileReferenceDragPasteboardType])
     }
 
     required init?(coder: NSCoder) {
@@ -65,6 +81,10 @@ final class DeskBlockView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override var mouseDownCanMoveWindow: Bool {
+        false
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         bounds.contains(point) ? self : nil
@@ -76,6 +96,7 @@ final class DeskBlockView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let eventLocation = convert(event.locationInWindow, from: nil)
+        pendingTileDrag = nil
 
         if let tileIndex = noteInfoTileIndex(at: eventLocation),
            let tileReference = state.tileReference(at: tileIndex),
@@ -94,7 +115,50 @@ final class DeskBlockView: NSView {
             return
         }
 
+        if event.clickCount == 1,
+           let tileIndex = tileIndex(at: eventLocation),
+           state.tileReference(at: tileIndex) != nil {
+            pendingTileDrag = PendingTileDrag(tileIndex: tileIndex, mouseDownLocation: eventLocation)
+        }
+
+        if event.clickCount == 1, isWindowDragRegion(at: eventLocation) {
+            window?.performDrag(with: event)
+            return
+        }
+
         super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard
+            let pendingTileDrag,
+            let tileReference = state.tileReference(at: pendingTileDrag.tileIndex)
+        else {
+            super.mouseDragged(with: event)
+            return
+        }
+
+        let eventLocation = convert(event.locationInWindow, from: nil)
+        guard distance(from: pendingTileDrag.mouseDownLocation, to: eventLocation) >= 4 else {
+            return
+        }
+
+        guard
+            let dragItem = draggingItem(for: tileReference),
+            let tileRect = tileRect(for: pendingTileDrag.tileIndex)
+        else {
+            self.pendingTileDrag = nil
+            return
+        }
+
+        dragItem.setDraggingFrame(tileRect, contents: dragImage(for: tileReference))
+        beginDraggingSession(with: [dragItem], event: event, source: self)
+        self.pendingTileDrag = nil
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        pendingTileDrag = nil
+        super.mouseUp(with: event)
     }
 
     override func scrollWheel(with event: NSEvent) {
@@ -116,7 +180,7 @@ final class DeskBlockView: NSView {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard folderURL(from: sender.draggingPasteboard) != nil else {
+        guard canAcceptDrag(from: sender.draggingPasteboard) else {
             return []
         }
 
@@ -124,7 +188,7 @@ final class DeskBlockView: NSView {
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard folderURL(from: sender.draggingPasteboard) != nil else {
+        guard canAcceptDrag(from: sender.draggingPasteboard) else {
             return []
         }
 
@@ -137,6 +201,25 @@ final class DeskBlockView: NSView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let eventLocation = convert(sender.draggingLocation, from: nil)
+
+        if let payload = tileReferenceDragPayload(from: sender.draggingPasteboard) {
+            guard
+                payload.blockIDRawValue == state.id.rawValue,
+                let tileIndex = magneticTileIndex(at: eventLocation)
+            else {
+                magneticTargetTileIndex = nil
+                return false
+            }
+
+            guard payload.tileIndex != tileIndex else {
+                magneticTargetTileIndex = nil
+                return false
+            }
+
+            requestMoveFolderReference?(state.id, payload.tileIndex, tileIndex)
+            magneticTargetTileIndex = nil
+            return true
+        }
 
         guard
             let tileIndex = magneticTileIndex(at: eventLocation),
@@ -263,6 +346,22 @@ final class DeskBlockView: NSView {
         menu.addItem(removeItem)
 
         return menu
+    }
+
+    func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        .move
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        pendingTileDrag = nil
+        magneticTargetTileIndex = nil
+    }
+
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool {
+        true
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -405,6 +504,46 @@ final class DeskBlockView: NSView {
         }
     }
 
+    private func draggingItem(for tileReference: TileReference) -> NSDraggingItem? {
+        let payload = TileDragPayload(
+            blockIDRawValue: state.id.rawValue,
+            tileIndex: tileReference.tileIndex
+        )
+
+        guard
+            let payloadData = try? JSONEncoder().encode(payload),
+            let payloadString = String(data: payloadData, encoding: .utf8)
+        else {
+            return nil
+        }
+
+        let pasteboardItem = NSPasteboardItem()
+        pasteboardItem.setString(payloadString, forType: Self.tileReferenceDragPasteboardType)
+        return NSDraggingItem(pasteboardWriter: pasteboardItem)
+    }
+
+    private func dragImage(for tileReference: TileReference) -> NSImage {
+        let imageSize = NSSize(
+            width: PrototypeGeometry.tileWidth,
+            height: PrototypeGeometry.tileHeight
+        )
+        let image = NSImage(size: imageSize)
+        image.lockFocus()
+
+        let tileRect = NSRect(origin: .zero, size: imageSize).insetBy(dx: 5, dy: 5)
+        let tilePath = NSBezierPath(roundedRect: tileRect, xRadius: 5, yRadius: 5)
+        NSColor(calibratedWhite: 1, alpha: 0.18).setFill()
+        tilePath.fill()
+        NSColor(calibratedRed: 0.22, green: 0.32, blue: 0.38, alpha: 0.42).setStroke()
+        tilePath.lineWidth = 1
+        tilePath.stroke()
+        drawFolderPlaceholder(in: tileRect)
+        drawTileLabel(tileReference.displayName, in: tileRect)
+
+        image.unlockFocus()
+        return image
+    }
+
     private func tileLabel(at tileIndex: Int) -> String {
         guard let tileReference = state.tileReference(at: tileIndex) else {
             return "Folder"
@@ -531,18 +670,9 @@ final class DeskBlockView: NSView {
     }
 
     private func noteInfoIconRect(for tileIndex: Int) -> NSRect {
-        guard let visibleSlot = visibleSlot(forTileIndex: tileIndex) else {
+        guard let tileRect = tileRect(for: tileIndex) else {
             return .zero
         }
-
-        let row = visibleSlot / state.columns
-        let column = visibleSlot % state.columns
-        let tileRect = NSRect(
-            x: PrototypeGeometry.padding + CGFloat(column) * PrototypeGeometry.tileWidth,
-            y: tileGridOriginY + CGFloat(row) * PrototypeGeometry.tileHeight,
-            width: PrototypeGeometry.tileWidth,
-            height: PrototypeGeometry.tileHeight
-        ).insetBy(dx: 5, dy: 5)
 
         return noteInfoIconRect(in: tileRect)
     }
@@ -697,6 +827,27 @@ final class DeskBlockView: NSView {
         return tileIndex(forVisibleSlot: visibleSlot)
     }
 
+    private func isWindowDragRegion(at point: NSPoint) -> Bool {
+        guard !state.isLocked else {
+            return false
+        }
+
+        if titleRect.contains(point) {
+            return true
+        }
+
+        return !visibleTileGridRect.contains(point)
+    }
+
+    private var visibleTileGridRect: NSRect {
+        NSRect(
+            x: PrototypeGeometry.padding,
+            y: tileGridOriginY,
+            width: CGFloat(max(0, state.columns)) * PrototypeGeometry.tileWidth,
+            height: CGFloat(max(0, visibleRowCount)) * PrototypeGeometry.tileHeight
+        )
+    }
+
     private func updateMagneticTarget(for sender: NSDraggingInfo) -> NSDragOperation {
         let eventLocation = convert(sender.draggingLocation, from: nil)
         magneticTargetTileIndex = magneticTileIndex(at: eventLocation)
@@ -705,7 +856,32 @@ final class DeskBlockView: NSView {
             return []
         }
 
+        if let payload = tileReferenceDragPayload(from: sender.draggingPasteboard) {
+            guard payload.tileIndex != magneticTargetTileIndex else {
+                magneticTargetTileIndex = nil
+                return []
+            }
+
+            return .move
+        }
+
         return dragOperation(for: sender)
+    }
+
+    private func tileRect(for tileIndex: Int) -> NSRect? {
+        guard let visibleSlot = visibleSlot(forTileIndex: tileIndex) else {
+            return nil
+        }
+
+        let row = visibleSlot / state.columns
+        let column = visibleSlot % state.columns
+
+        return NSRect(
+            x: PrototypeGeometry.padding + CGFloat(column) * PrototypeGeometry.tileWidth,
+            y: tileGridOriginY + CGFloat(row) * PrototypeGeometry.tileHeight,
+            width: PrototypeGeometry.tileWidth,
+            height: PrototypeGeometry.tileHeight
+        ).insetBy(dx: 5, dy: 5)
     }
 
     private var visibleSlotCount: Int {
@@ -871,6 +1047,26 @@ final class DeskBlockView: NSView {
             .first(where: isFolderURL)
     }
 
+    private func canAcceptDrag(from pasteboard: NSPasteboard) -> Bool {
+        if let payload = tileReferenceDragPayload(from: pasteboard) {
+            return payload.blockIDRawValue == state.id.rawValue
+        }
+
+        return folderURL(from: pasteboard) != nil
+    }
+
+    private func tileReferenceDragPayload(from pasteboard: NSPasteboard) -> TileDragPayload? {
+        guard
+            let payloadString = pasteboard.string(forType: Self.tileReferenceDragPasteboardType),
+            let payloadData = payloadString.data(using: .utf8),
+            let payload = try? JSONDecoder().decode(TileDragPayload.self, from: payloadData)
+        else {
+            return nil
+        }
+
+        return payload
+    }
+
     private func isFolderURL(_ url: URL) -> Bool {
         (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
     }
@@ -891,5 +1087,9 @@ final class DeskBlockView: NSView {
         }
 
         return []
+    }
+
+    private func distance(from start: NSPoint, to end: NSPoint) -> CGFloat {
+        hypot(end.x - start.x, end.y - start.y)
     }
 }

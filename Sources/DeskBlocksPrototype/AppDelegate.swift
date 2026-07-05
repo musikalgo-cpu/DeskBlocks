@@ -486,6 +486,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockView.requestRemoveFolderNote = { [weak self] blockID, tileIndex in
             self?.updateFolderNote(nil, in: blockID, at: tileIndex)
         }
+        blockView.requestMoveFolderReference = { [weak self] blockID, sourceTileIndex, destinationTileIndex in
+            self?.moveFolderReference(in: blockID, from: sourceTileIndex, to: destinationTileIndex)
+        }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
         window.title = block.title
@@ -953,6 +956,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         let updatedBlock = currentBlock.removingTileReference(at: tileIndex)
+
+        guard updatedBlock != currentBlock else {
+            NSSound.beep()
+            return
+        }
+
+        update(block: updatedBlock)
+    }
+
+    private func moveFolderReference(in blockID: DeskBlockID, from sourceTileIndex: Int, to destinationTileIndex: Int) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let updatedBlock = currentBlock.movingTileReference(
+            from: sourceTileIndex,
+            to: destinationTileIndex
+        )
 
         guard updatedBlock != currentBlock else {
             NSSound.beep()

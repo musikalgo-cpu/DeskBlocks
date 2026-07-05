@@ -357,6 +357,45 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         )
     }
 
+    public func movingTileReference(from sourceTileIndex: Int, to destinationTileIndex: Int) -> DeskBlockState {
+        guard
+            sourceTileIndex != destinationTileIndex,
+            sourceTileIndex >= 0,
+            sourceTileIndex < tileCount,
+            destinationTileIndex >= 0,
+            destinationTileIndex < tileCount,
+            let sourceReference = tileReference(at: sourceTileIndex)
+        else {
+            return self
+        }
+
+        let destinationReference = tileReference(at: destinationTileIndex)
+        let nextReferences = tileReferences.map { reference in
+            if reference.id == sourceReference.id {
+                return reference.placed(at: destinationTileIndex)
+            }
+
+            if let destinationReference, reference.id == destinationReference.id {
+                return reference.placed(at: sourceTileIndex)
+            }
+
+            return reference
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            titleColor: titleColor,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: nextReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
+        )
+    }
+
     public func updatingTileReferenceNote(_ note: String?, at tileIndex: Int) -> DeskBlockState {
         guard let reference = tileReference(at: tileIndex) else {
             return self
