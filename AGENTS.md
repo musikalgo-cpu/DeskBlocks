@@ -30,6 +30,8 @@ Do not skip required gates. The first macOS desktop behavior risk has enough fea
 - Create or update `SPEC.md` before implementation work.
 - Record major technical decisions with ADRs before committing to them, especially stack changes, persistence format changes, packaging/signing decisions, or OS-level integrations.
 - Use `references/definition-of-done.md` as the completion bar for every increment.
+- After this file, use `docs/project-registry.md` to choose the smallest relevant code and documentation context before broad repo searches.
+- Follow `docs/token-usage-guidelines.md`: keep context targeted, outputs concise, and verification proportional to risk without skipping required gates.
 - When a real stack exists, update this file with the actual dev, build, lint, and test commands.
 
 ## Local Reference Routing
@@ -57,12 +59,19 @@ Current Swift/AppKit commands:
 - Run: `swift run DeskBlocksPrototype`
 - Check core geometry: `swift run DeskBlocksCoreChecks`
 - Build local `.app`: `scripts/build-local-app.sh`
+- Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
+- Smoke folder-reference removal: `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`
+- Smoke title color: `swift run DeskBlocksPrototype --title-color-smoke "1,0.5,0,1"`
+- Smoke empty tile visibility: `swift run DeskBlocksPrototype --hide-empty-tiles-smoke`
+- Smoke block lock state: `swift run DeskBlocksPrototype --lock-block-smoke`
 
 No lint command exists yet. No `swift test` target exists in the current Command Line Tools setup; use `swift run DeskBlocksCoreChecks` for the current grid/snapping checks. Do not invent commands such as `npm test`, `npm run build`, `swift test`, or `cargo test` unless the matching project files exist.
 
 For documentation and planning changes, verify with targeted file searches and a final diff review. For Swift/AppKit prototype changes, run `swift build` and `swift run DeskBlocksCoreChecks` when grid/snapping logic is affected; run `swift run DeskBlocksPrototype` only when a GUI launch check is needed.
 
 For local app packaging changes, run `scripts/build-local-app.sh` and verify `dist/DeskBlocks.app` exists. Launch it only when a GUI bundle check is needed.
+
+Keep long task history out of future turns: after a feature slice, long debug loop, or review, start a new thread with a compact handoff rather than relying on the full conversation.
 
 For uncritical completed documentation and planning changes, commit after verification without a separate prompt. Ask before committing behavior changes, dependency changes, architecture changes, persistence-format changes, OS integrations, or any risky/destructive operation unless the user explicitly requested the commit.
 

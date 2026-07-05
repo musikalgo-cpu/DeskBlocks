@@ -34,6 +34,8 @@ A block is a visual desktop container with:
 
 - Title text.
 - Title color.
+- Per-block empty tile visibility.
+- Per-block lock state for position and size.
 - Visible border or frame.
 - Position on screen.
 - Width and height.
@@ -115,6 +117,8 @@ MVP UX decisions:
 - If a block contains more tile slots than the current viewport can show, the block must show subtle overflow indicators and allow scrolling to hidden tiles.
 - Overflow indicators get dedicated vertical breathing room above and below the tile grid rather than overlapping tile content.
 - A block must not resize beyond the visible screen bounds from its current screen position.
+- A block can hide empty tile placeholders while preserving the underlying tile slots and folder placement indexes.
+- A block can be locked to prevent accidental move and resize operations. Locking does not prevent opening, replacing, or removing folder references, but tile add/delete is disabled while locked because it can change required block size.
 - Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
 - Users can add or delete tile slots in a block; deleting tiles must never reduce a block below one tile.
 - Block removal should use a context menu or a subtle hover/selection control.
@@ -136,6 +140,7 @@ Required MVP capabilities:
 - Prevent resize states where current tile slots disappear because the block capacity is too small.
 - Persist block title, position, size, and tile count across app restarts.
 - Persist block title color across app restarts.
+- Persist per-block empty tile visibility and lock state across app restarts.
 - Render at least one block with fixed tile slots that visually match Finder folder readability.
 - Preserve the model that tile contents are DeskBlocks references, not Finder file ownership.
 - Place a folder reference into a visible tile through a minimal native interaction.
@@ -188,6 +193,8 @@ Local private app packaging uses an unsigned app bundle as accepted in `docs/dec
 
 Block title colors use app-owned RGBA persistence as accepted in `docs/decisions/ADR-005-persist-block-title-colors.md`.
 
+Block display and lock options use boolean per-block persistence as accepted in `docs/decisions/ADR-006-persist-block-display-and-lock-options.md`.
+
 ## Commands
 
 Current prototype commands:
@@ -199,6 +206,8 @@ Current prototype commands:
 - Smoke folder-reference placement: `swift run DeskBlocksPrototype --add-folder-smoke "/path/to/folder" --tile-index 0`
 - Smoke folder-reference removal: `swift run DeskBlocksPrototype --remove-folder-smoke --tile-index 0`
 - Smoke title-color persistence: `swift run DeskBlocksPrototype --title-color-smoke "1,0.5,0,1"`
+- Smoke empty-tile visibility: `swift run DeskBlocksPrototype --hide-empty-tiles-smoke`
+- Smoke block lock state: `swift run DeskBlocksPrototype --lock-block-smoke`
 
 No lint command exists yet.
 

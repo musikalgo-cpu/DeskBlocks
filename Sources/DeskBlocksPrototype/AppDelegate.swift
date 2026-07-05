@@ -64,6 +64,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        if CommandLine.arguments.contains("--hide-empty-tiles-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.toggleEmptyTiles(for: blockID)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
+        if CommandLine.arguments.contains("--lock-block-smoke") {
+            DispatchQueue.main.async { [weak self] in
+                guard let blockID = self?.state.blocks.first?.id else {
+                    NSApplication.shared.terminate(nil)
+                    return
+                }
+
+                self?.toggleLock(for: blockID)
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+
         if CommandLine.arguments.contains("--remove-smoke") {
             DispatchQueue.main.async { [weak self] in
                 guard let blockID = self?.state.blocks.first?.id else {
@@ -157,6 +183,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return frameSize
         }
 
+        guard !currentBlock.isLocked else {
+            return sender.frame.size
+        }
+
         let proposedFrame = NSRect(origin: sender.frame.origin, size: frameSize)
         let proposedContent = sender.contentRect(forFrameRect: proposedFrame)
         let snapped = PrototypeGeometry.metrics.snappedSize(
@@ -176,11 +206,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        guard !isLocked(window: window) else {
+            enforceLockedFrame(for: window)
+            return
+        }
+
         updateState(from: window, save: false)
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        guard !isLocked(window: window) else {
+            enforceLockedFrame(for: window)
             return
         }
 
@@ -194,8 +234,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        guard !isLocked(window: window) else {
+            enforceLockedFrame(for: window)
+            return
+        }
+
         keepWindowInsideVisibleScreen(window)
         updateState(from: window, save: true)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard let action = menuItem.action else {
+            return true
+        }
+
+        guard
+            let blockID = selectedBlockID(),
+            let block = state.block(id: blockID)
+        else {
+            return action == #selector(createNewBlock(_:))
+        }
+
+        switch action {
+        case #selector(toggleSelectedBlockEmptyTiles(_:)):
+            menuItem.state = block.hidesEmptyTiles ? .on : .off
+            return true
+        case #selector(toggleSelectedBlockLock(_:)):
+            menuItem.state = block.isLocked ? .on : .off
+            return true
+        case #selector(addTileToSelectedBlock(_:)), #selector(deleteTileFromSelectedBlock(_:)):
+            return !block.isLocked
+        default:
+            return true
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -251,6 +322,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             action: #selector(editSelectedBlockTitleColor(_:)),
             keyEquivalent: ""
         )
+        let hideEmptyTilesItem = NSMenuItem(
+            title: "Hide Empty Tiles",
+            action: #selector(toggleSelectedBlockEmptyTiles(_:)),
+            keyEquivalent: ""
+        )
+        let lockBlockItem = NSMenuItem(
+            title: "Lock Block",
+            action: #selector(toggleSelectedBlockLock(_:)),
+            keyEquivalent: ""
+        )
         let addTileItem = NSMenuItem(
             title: "Add Tile",
             action: #selector(addTileToSelectedBlock(_:)),
@@ -282,11 +363,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         renameBlockItem.target = self
         titleColorItem.target = self
+        hideEmptyTilesItem.target = self
+        lockBlockItem.target = self
         addTileItem.target = self
         deleteTileItem.target = self
         removeBlockItem.target = self
         editMenu.addItem(renameBlockItem)
         editMenu.addItem(titleColorItem)
+        editMenu.addItem(hideEmptyTilesItem)
+        editMenu.addItem(lockBlockItem)
         editMenu.addItem(.separator())
         editMenu.addItem(addTileItem)
         editMenu.addItem(deleteTileItem)
@@ -334,6 +419,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockView.requestEditTitleColor = { [weak self] blockID in
             self?.showTitleColorPanel(for: blockID)
         }
+        blockView.requestToggleEmptyTiles = { [weak self] blockID in
+            self?.toggleEmptyTiles(for: blockID)
+        }
+        blockView.requestToggleLock = { [weak self] blockID in
+            self?.toggleLock(for: blockID)
+        }
         blockView.requestAddTile = { [weak self] blockID in
             self?.addTile(to: blockID)
         }
@@ -372,6 +463,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.standardWindowButton(.zoomButton)?.isEnabled = false
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        applyWindowInteraction(for: block, to: window)
         window.makeKeyAndOrderFront(nil)
 
         windowsByBlockID[block.id] = window
@@ -556,10 +648,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func editSelectedBlockTitleColor(_ sender: Any?) {
-        guard
-            let keyWindow = NSApplication.shared.keyWindow,
-            let blockID = blockID(for: keyWindow)
-        else {
+        guard let blockID = selectedBlockID() else {
             NSSound.beep()
             return
         }
@@ -567,11 +656,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showTitleColorPanel(for: blockID)
     }
 
+    @objc private func toggleSelectedBlockEmptyTiles(_ sender: Any?) {
+        guard let blockID = selectedBlockID() else {
+            NSSound.beep()
+            return
+        }
+
+        toggleEmptyTiles(for: blockID)
+    }
+
+    @objc private func toggleSelectedBlockLock(_ sender: Any?) {
+        guard let blockID = selectedBlockID() else {
+            NSSound.beep()
+            return
+        }
+
+        toggleLock(for: blockID)
+    }
+
     @objc private func addTileToSelectedBlock(_ sender: Any?) {
-        guard
-            let keyWindow = NSApplication.shared.keyWindow,
-            let blockID = blockID(for: keyWindow)
-        else {
+        guard let blockID = selectedBlockID() else {
             NSSound.beep()
             return
         }
@@ -580,10 +684,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func deleteTileFromSelectedBlock(_ sender: Any?) {
-        guard
-            let keyWindow = NSApplication.shared.keyWindow,
-            let blockID = blockID(for: keyWindow)
-        else {
+        guard let blockID = selectedBlockID() else {
             NSSound.beep()
             return
         }
@@ -677,8 +778,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         update(block: updatedBlock)
     }
 
+    private func toggleEmptyTiles(for blockID: DeskBlockID) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        update(block: currentBlock.withEmptyTilesHidden(!currentBlock.hidesEmptyTiles))
+    }
+
+    private func toggleLock(for blockID: DeskBlockID) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        update(block: currentBlock.withLocked(!currentBlock.isLocked))
+    }
+
     private func addTile(to blockID: DeskBlockID) {
         guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        guard !currentBlock.isLocked else {
+            NSSound.beep()
             return
         }
 
@@ -687,6 +809,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func deleteTile(from blockID: DeskBlockID) {
         guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        guard !currentBlock.isLocked else {
+            NSSound.beep()
             return
         }
 
@@ -839,6 +966,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockViewsByBlockID[normalizedBlock.id]?.state = normalizedBlock
         window.title = normalizedBlock.title
         window.minSize = minimumFrameSize(for: normalizedBlock, in: window)
+        applyWindowInteraction(for: normalizedBlock, to: window)
 
         let contentRect = window.contentRect(forFrameRect: window.frame)
         let minimumContentSize = PrototypeGeometry.metrics.snappedSize(
@@ -910,6 +1038,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }?.key
     }
 
+    private func selectedBlockID() -> DeskBlockID? {
+        guard let keyWindow = NSApplication.shared.keyWindow else {
+            return nil
+        }
+
+        return blockID(for: keyWindow)
+    }
+
     private func updateStateFromAllWindows(save: Bool) {
         windowsByBlockID.values.forEach { window in
             updateState(from: window, save: false)
@@ -925,6 +1061,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let blockID = blockID(for: window),
             let currentBlock = state.block(id: blockID)
         else {
+            return
+        }
+
+        guard !currentBlock.isLocked else {
+            enforceLockedFrame(for: window)
             return
         }
 
@@ -981,6 +1122,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockIDsApplyingSnappedFrame.insert(blockID)
         window.setFrame(snappedFrame, display: true)
         blockIDsApplyingSnappedFrame.remove(blockID)
+    }
+
+    private func applyWindowInteraction(for block: DeskBlockState, to window: NSWindow) {
+        if block.isLocked {
+            window.styleMask.remove(.resizable)
+        } else {
+            window.styleMask.insert(.resizable)
+        }
+
+        window.isMovableByWindowBackground = !block.isLocked
+        window.minSize = minimumFrameSize(for: block, in: window)
+    }
+
+    private func isLocked(window: NSWindow) -> Bool {
+        guard let blockID = blockID(for: window) else {
+            return false
+        }
+
+        return state.block(id: blockID)?.isLocked == true
+    }
+
+    private func enforceLockedFrame(for window: NSWindow) {
+        guard
+            let blockID = blockID(for: window),
+            let block = state.block(id: blockID)
+        else {
+            return
+        }
+
+        let storedFrame = window.frameRect(forContentRect: block.frame.contentRect)
+
+        guard window.frame != storedFrame else {
+            return
+        }
+
+        window.setFrame(storedFrame, display: true)
     }
 
     private func blockColor(from argument: String) -> BlockColor? {

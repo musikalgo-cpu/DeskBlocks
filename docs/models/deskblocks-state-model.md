@@ -23,6 +23,8 @@ A block is valid only when:
 
 - It has a title.
 - It has a title color.
+- It has explicit empty tile visibility state.
+- It has explicit lock state.
 - It has a frame with origin and size.
 - Its size corresponds to whole tile columns and rows.
 - Its column count and row count are at least the configured minimum.
@@ -124,6 +126,7 @@ Persistence invariants:
 - Decode failure must not delete user files or Finder folders.
 - Future tile references must survive snapping, moving, resizing, and JSON round-trips.
 - Missing legacy title color data must decode to the default pure white title color.
+- Missing legacy empty tile visibility and lock data must decode to visible empty tiles and unlocked behavior.
 
 ## Future Folder Reference Lifecycle
 
@@ -163,6 +166,8 @@ Implementation should make these states impossible or reject/normalize them imme
 - A folder reference whose tile index is outside the block's requested tile count.
 - A block movement that moves real Finder icons or underlying folders.
 - A magnetic placement interaction that manipulates Finder desktop icon positions.
+- Hiding empty tile placeholders that changes tile indexes or folder placement.
+- A locked block move or resize that persists a new origin or size.
 
 ## Current Prototype Mapping
 
@@ -186,8 +191,12 @@ Current code already covers:
 - Close behavior is guarded by `swift run DeskBlocksPrototype --close-smoke`.
 - Title editing preserves block identity, geometry, tile references, and persisted state.
 - Title color editing preserves block identity, geometry, tile references, and persisted state.
+- Empty tile visibility editing preserves block identity, geometry, tile references, and persisted state.
+- Lock editing preserves block identity, geometry, tile references, and persisted state.
 - Rename behavior is guarded by `swift run DeskBlocksPrototype --rename-smoke "Title"`.
 - Title color persistence is guarded by `swift run DeskBlocksPrototype --title-color-smoke "1,0.5,0,1"`.
+- Empty tile visibility persistence is guarded by `swift run DeskBlocksPrototype --hide-empty-tiles-smoke`.
+- Lock persistence is guarded by `swift run DeskBlocksPrototype --lock-block-smoke`.
 - Block removal preserves non-removed blocks, allows an intentionally empty state, and never affects Finder files.
 - Remove behavior is guarded by `swift run DeskBlocksPrototype --remove-smoke`.
 - Add/delete tile behavior keeps enough frame capacity for visible tiles and never deletes the last tile.

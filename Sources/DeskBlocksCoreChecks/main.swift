@@ -446,6 +446,8 @@ private func testDeskBlockStateRoundTripsThroughJSON() {
     ).withTitleColor(
         BlockColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 0.8)
     )
+    .withEmptyTilesHidden(true)
+    .withLocked(true)
 
     do {
         let data = try JSONEncoder().encode(state)
@@ -478,6 +480,8 @@ private func testDeskBlockStateDecodesLegacyJSONWithoutID() {
         check(decoded.id == .prototype, "expected legacy state to default to prototype block ID")
         check(decoded.title == "Legacy Prototype", "expected legacy title to decode")
         check(decoded.titleColor == .white, "expected legacy title color to default to white")
+        check(decoded.hidesEmptyTiles == false, "expected legacy empty tile visibility to default to showing empty tiles")
+        check(decoded.isLocked == false, "expected legacy lock state to default to unlocked")
         check(decoded.columns == 4, "expected legacy columns to decode")
         check(decoded.rows == 3, "expected legacy rows to decode")
         check(decoded.tileCount == 12, "expected legacy state to default tile count from grid capacity")
@@ -768,6 +772,82 @@ private func testDeskBlockStateUpdatesTitleColorWithoutChangingGeometryOrReferen
     check(updated.tileReferences == state.tileReferences, "expected tile references to survive title color edit")
 }
 
+private func testDeskBlockStateTogglesEmptyTileVisibilityWithoutChangingGeometryOrReferences() {
+    let state = DeskBlockState(
+        title: "Visibility Test",
+        titleColor: BlockColor(red: 0.7, green: 0.8, blue: 0.9, alpha: 1),
+        frame: BlockFrame(
+            origin: BlockPoint(x: 90, y: 120),
+            size: TileGridMetrics.prototype.contentSize(columns: 3, rows: 2)
+        ),
+        columns: 3,
+        rows: 2,
+        tileCount: 5,
+        tileReferences: [
+            TileReference(
+                id: "tile-a",
+                tileIndex: 1,
+                displayName: "Folder A",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-a",
+                    lastKnownPath: "/tmp/a"
+                )
+            )
+        ]
+    )
+
+    let updated = state.withEmptyTilesHidden(true)
+
+    check(updated.hidesEmptyTiles, "expected empty tiles to become hidden")
+    check(updated.id == state.id, "expected ID to survive empty tile visibility edit")
+    check(updated.title == state.title, "expected title to survive empty tile visibility edit")
+    check(updated.titleColor == state.titleColor, "expected title color to survive empty tile visibility edit")
+    check(updated.frame == state.frame, "expected frame to survive empty tile visibility edit")
+    check(updated.columns == state.columns, "expected columns to survive empty tile visibility edit")
+    check(updated.rows == state.rows, "expected rows to survive empty tile visibility edit")
+    check(updated.tileCount == state.tileCount, "expected tile count to survive empty tile visibility edit")
+    check(updated.tileReferences == state.tileReferences, "expected tile references to survive empty tile visibility edit")
+}
+
+private func testDeskBlockStateTogglesLockWithoutChangingGeometryOrReferences() {
+    let state = DeskBlockState(
+        title: "Lock Test",
+        titleColor: BlockColor(red: 0.7, green: 0.8, blue: 0.9, alpha: 1),
+        frame: BlockFrame(
+            origin: BlockPoint(x: 90, y: 120),
+            size: TileGridMetrics.prototype.contentSize(columns: 3, rows: 2)
+        ),
+        columns: 3,
+        rows: 2,
+        tileCount: 5,
+        tileReferences: [
+            TileReference(
+                id: "tile-a",
+                tileIndex: 1,
+                displayName: "Folder A",
+                folderReference: FolderReference(
+                    bookmarkDataBase64: "bookmark-a",
+                    lastKnownPath: "/tmp/a"
+                )
+            )
+        ],
+        hidesEmptyTiles: true
+    )
+
+    let updated = state.withLocked(true)
+
+    check(updated.isLocked, "expected block to become locked")
+    check(updated.id == state.id, "expected ID to survive lock edit")
+    check(updated.title == state.title, "expected title to survive lock edit")
+    check(updated.titleColor == state.titleColor, "expected title color to survive lock edit")
+    check(updated.frame == state.frame, "expected frame to survive lock edit")
+    check(updated.columns == state.columns, "expected columns to survive lock edit")
+    check(updated.rows == state.rows, "expected rows to survive lock edit")
+    check(updated.tileCount == state.tileCount, "expected tile count to survive lock edit")
+    check(updated.tileReferences == state.tileReferences, "expected tile references to survive lock edit")
+    check(updated.hidesEmptyTiles == state.hidesEmptyTiles, "expected empty tile visibility to survive lock edit")
+}
+
 private func testTileReferenceDecodesLegacyStringFolderReference() {
     let legacyJSON = """
     {
@@ -830,6 +910,8 @@ testDeskBlocksStateCanRemoveTheLastBlock()
 testDeskBlockStateRenamesWithTrimmedTitle()
 testDeskBlockStateIgnoresEmptyRenamedTitle()
 testDeskBlockStateUpdatesTitleColorWithoutChangingGeometryOrReferences()
+testDeskBlockStateTogglesEmptyTileVisibilityWithoutChangingGeometryOrReferences()
+testDeskBlockStateTogglesLockWithoutChangingGeometryOrReferences()
 testTileReferenceDecodesLegacyStringFolderReference()
 
 print("DeskBlocksCoreChecks passed")

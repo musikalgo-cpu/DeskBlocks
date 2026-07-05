@@ -138,6 +138,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
     public let rows: Int
     public let tileCount: Int
     public let tileReferences: [TileReference]
+    public let hidesEmptyTiles: Bool
+    public let isLocked: Bool
 
     public var tileCapacity: Int {
         max(0, columns * rows)
@@ -155,7 +157,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         columns: Int,
         rows: Int,
         tileCount: Int? = nil,
-        tileReferences: [TileReference] = []
+        tileReferences: [TileReference] = [],
+        hidesEmptyTiles: Bool = false,
+        isLocked: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -167,6 +171,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
 
         self.tileCount = safeTileCount
         self.tileReferences = Self.normalizedTileReferences(tileReferences, tileCount: safeTileCount)
+        self.hidesEmptyTiles = hidesEmptyTiles
+        self.isLocked = isLocked
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -178,6 +184,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         case rows
         case tileCount
         case tileReferences
+        case hidesEmptyTiles
+        case isLocked
     }
 
     public init(from decoder: Decoder) throws {
@@ -193,6 +201,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         tileCount = max(1, decodedTileCount ?? max(1, columns * rows))
         let decodedReferences = try container.decodeIfPresent([TileReference].self, forKey: .tileReferences) ?? []
         tileReferences = Self.normalizedTileReferences(decodedReferences, tileCount: tileCount)
+        hidesEmptyTiles = try container.decodeIfPresent(Bool.self, forKey: .hidesEmptyTiles) ?? false
+        isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -206,6 +216,8 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         try container.encode(rows, forKey: .rows)
         try container.encode(tileCount, forKey: .tileCount)
         try container.encode(tileReferences, forKey: .tileReferences)
+        try container.encode(hidesEmptyTiles, forKey: .hidesEmptyTiles)
+        try container.encode(isLocked, forKey: .isLocked)
     }
 
     public static func prototypeDefault(
@@ -226,7 +238,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: columns,
             rows: rows,
             tileCount: columns * rows,
-            tileReferences: []
+            tileReferences: [],
+            hidesEmptyTiles: false,
+            isLocked: false
         )
     }
 
@@ -253,7 +267,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: snapped.columns,
             rows: snapped.rows,
             tileCount: tileCount,
-            tileReferences: tileReferences
+            tileReferences: tileReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
         )
     }
 
@@ -289,7 +305,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: columns,
             rows: rows,
             tileCount: tileCount,
-            tileReferences: nextReferences
+            tileReferences: nextReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
         )
     }
 
@@ -308,7 +326,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             tileCount: tileCount,
             tileReferences: tileReferences.filter { reference in
                 reference.tileIndex != tileIndex
-            }
+            },
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
         )
     }
 
@@ -330,7 +350,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: nextColumns,
             rows: nextRows,
             tileCount: safeTileCount,
-            tileReferences: tileReferences
+            tileReferences: tileReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
         )
     }
 
@@ -349,7 +371,9 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: columns,
             rows: rows,
             tileCount: tileCount,
-            tileReferences: tileReferences
+            tileReferences: tileReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
         )
     }
 
@@ -366,7 +390,47 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             columns: columns,
             rows: rows,
             tileCount: tileCount,
-            tileReferences: tileReferences
+            tileReferences: tileReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: isLocked
+        )
+    }
+
+    public func withEmptyTilesHidden(_ shouldHideEmptyTiles: Bool) -> DeskBlockState {
+        guard shouldHideEmptyTiles != hidesEmptyTiles else {
+            return self
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            titleColor: titleColor,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: tileReferences,
+            hidesEmptyTiles: shouldHideEmptyTiles,
+            isLocked: isLocked
+        )
+    }
+
+    public func withLocked(_ shouldLock: Bool) -> DeskBlockState {
+        guard shouldLock != isLocked else {
+            return self
+        }
+
+        return DeskBlockState(
+            id: id,
+            title: title,
+            titleColor: titleColor,
+            frame: frame,
+            columns: columns,
+            rows: rows,
+            tileCount: tileCount,
+            tileReferences: tileReferences,
+            hidesEmptyTiles: hidesEmptyTiles,
+            isLocked: shouldLock
         )
     }
 

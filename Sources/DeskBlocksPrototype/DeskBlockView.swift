@@ -14,6 +14,8 @@ final class DeskBlockView: NSView {
     var requestAddTile: ((DeskBlockID) -> Void)?
     var requestDeleteTile: ((DeskBlockID) -> Void)?
     var requestEditTitleColor: ((DeskBlockID) -> Void)?
+    var requestToggleEmptyTiles: ((DeskBlockID) -> Void)?
+    var requestToggleLock: ((DeskBlockID) -> Void)?
     var requestChooseFolder: ((DeskBlockID, Int) -> Void)?
     var requestPlaceFolder: ((DeskBlockID, Int, URL) -> Void)?
     var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
@@ -56,6 +58,14 @@ final class DeskBlockView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 
     override func mouseDown(with event: NSEvent) {
         let eventLocation = convert(event.locationInWindow, from: nil)
@@ -147,6 +157,16 @@ final class DeskBlockView: NSView {
             action: #selector(editTitleColorFromContextMenu(_:)),
             keyEquivalent: ""
         )
+        let hideEmptyTilesItem = NSMenuItem(
+            title: "Hide Empty Tiles",
+            action: #selector(toggleEmptyTilesFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let lockItem = NSMenuItem(
+            title: "Lock Block",
+            action: #selector(toggleLockFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
         let openFolderItem = NSMenuItem(
             title: "Open Folder",
             action: #selector(openFolderFromContextMenu(_:)),
@@ -175,6 +195,10 @@ final class DeskBlockView: NSView {
 
         renameItem.target = self
         titleColorItem.target = self
+        hideEmptyTilesItem.target = self
+        hideEmptyTilesItem.state = state.hidesEmptyTiles ? .on : .off
+        lockItem.target = self
+        lockItem.state = state.isLocked ? .on : .off
         chooseFolderItem.target = self
         chooseFolderItem.representedObject = clickedTileIndex
         openFolderItem.target = self
@@ -182,10 +206,14 @@ final class DeskBlockView: NSView {
         removeFolderReferenceItem.target = self
         removeFolderReferenceItem.representedObject = clickedTileIndex
         addTileItem.target = self
+        addTileItem.isEnabled = !state.isLocked
         deleteTileItem.target = self
+        deleteTileItem.isEnabled = !state.isLocked
         removeItem.target = self
         menu.addItem(renameItem)
         menu.addItem(titleColorItem)
+        menu.addItem(hideEmptyTilesItem)
+        menu.addItem(lockItem)
         menu.addItem(.separator())
         if clickedTileIndex != nil {
             if clickedTileReference != nil {
@@ -209,6 +237,7 @@ final class DeskBlockView: NSView {
         super.draw(dirtyRect)
 
         let bounds = self.bounds.insetBy(dx: 0.5, dy: 0.5)
+
         let blockPath = NSBezierPath(
             roundedRect: bounds,
             xRadius: 8,
@@ -251,6 +280,14 @@ final class DeskBlockView: NSView {
 
     @objc private func editTitleColorFromContextMenu(_ sender: Any?) {
         requestEditTitleColor?(state.id)
+    }
+
+    @objc private func toggleEmptyTilesFromContextMenu(_ sender: Any?) {
+        requestToggleEmptyTiles?(state.id)
+    }
+
+    @objc private func toggleLockFromContextMenu(_ sender: Any?) {
+        requestToggleLock?(state.id)
     }
 
     @objc private func addTileFromContextMenu(_ sender: Any?) {
@@ -302,6 +339,11 @@ final class DeskBlockView: NSView {
             let column = visibleSlot % state.columns
 
             let label = tileLabel(at: tileIndex)
+            let isMagneticTarget = tileIndex == magneticTargetTileIndex
+
+            if state.hidesEmptyTiles, state.tileReference(at: tileIndex) == nil, !isMagneticTarget {
+                continue
+            }
 
             drawTile(
                 row: row,
@@ -309,7 +351,7 @@ final class DeskBlockView: NSView {
                 originX: originX,
                 originY: originY,
                 label: label,
-                isMagneticTarget: tileIndex == magneticTargetTileIndex
+                isMagneticTarget: isMagneticTarget
             )
         }
     }
