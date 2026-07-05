@@ -1,7 +1,16 @@
 .DS_Store
+*.log
 .build/
 dist/
 DerivedData/
 *.xcuserdata/
+*.xcuserstate
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.swiftpm/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.cer
+*.mobileprovision
