@@ -68,13 +68,16 @@ When a folder reference is placed in a tile:
 
 - DeskBlocks stores bookmark-backed folder reference data, with the last known path kept only as secondary fallback/debug metadata.
 - DeskBlocks stores the tile index for the reference so a folder can occupy a specific visible tile slot.
+- DeskBlocks may store an optional plain-text note for the folder reference as app-owned metadata.
 - DeskBlocks renders the folder as a tile item inside the block.
 - DeskBlocks can open the referenced folder through the system workspace.
 - Moving the block moves the rendered tile item with the block.
 - Resizing the block may change which tile slots are visible or available, but must not scale the tile item.
 - Removing a folder reference clears only the DeskBlocks tile reference.
+- Removing or replacing a folder reference also clears its DeskBlocks note.
 - This reference-only rule also applies to top-level folders that are located directly on the Desktop.
 - DeskBlocks must not move, rename, copy, delete, or reorganize the underlying Finder folder as part of this behavior.
+- DeskBlocks folder notes must not be written into Finder comments, extended attributes, sidecar files, or the underlying folder.
 
 ### Magnetic Tile Placement
 
@@ -119,6 +122,7 @@ MVP UX decisions:
 - A block must not resize beyond the visible screen bounds from its current screen position.
 - A block can hide empty tile placeholders while preserving the underlying tile slots and folder placement indexes.
 - A block can be locked to prevent accidental move and resize operations. Locking does not prevent opening, replacing, or removing folder references, but tile add/delete is disabled while locked because it can change required block size.
+- A folder reference can have a short plain-text note added from its tile context menu. If present, the tile shows a subtle clickable `i` indicator near the upper-right edge; clicking it opens a read-only popover near the indicator.
 - Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
 - Users can add or delete tile slots in a block; deleting tiles must never reduce a block below one tile.
 - Block removal should use a context menu or a subtle hover/selection control.
@@ -147,6 +151,7 @@ Required MVP capabilities:
 - Place a folder reference by dragging a Finder folder onto a visible tile.
 - Show a subtle magnetic target highlight when a dragged Finder folder is near a valid tile.
 - Open and remove a folder reference from a visible tile without changing the Finder folder.
+- Add, edit, view, persist, and remove an optional note on a folder reference without changing the Finder folder.
 - Provide a minimal way to edit a block title and remove a block.
 
 Feasibility prototype capabilities:
@@ -194,6 +199,8 @@ Local private app packaging uses an unsigned app bundle as accepted in `docs/dec
 Block title colors use app-owned RGBA persistence as accepted in `docs/decisions/ADR-005-persist-block-title-colors.md`.
 
 Block display and lock options use boolean per-block persistence as accepted in `docs/decisions/ADR-006-persist-block-display-and-lock-options.md`.
+
+Folder reference notes use optional app-owned text persistence on tile references as accepted in `docs/decisions/ADR-007-persist-folder-reference-notes.md`.
 
 ## Commands
 

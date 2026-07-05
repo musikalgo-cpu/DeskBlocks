@@ -1,5 +1,6 @@
 import AppKit
 import DeskBlocksCore
+import QuartzCore
 import UniformTypeIdentifiers
 
 final class DeskBlockView: NSView {
@@ -20,7 +21,10 @@ final class DeskBlockView: NSView {
     var requestPlaceFolder: ((DeskBlockID, Int, URL) -> Void)?
     var requestOpenFolder: ((DeskBlockID, Int) -> Void)?
     var requestRemoveFolderReference: ((DeskBlockID, Int) -> Void)?
+    var requestEditFolderNote: ((DeskBlockID, Int) -> Void)?
+    var requestRemoveFolderNote: ((DeskBlockID, Int) -> Void)?
 
+    private var notePopover: NSPopover?
     private var magneticTargetTileIndex: Int? {
         didSet {
             if magneticTargetTileIndex != oldValue {
@@ -69,6 +73,13 @@ final class DeskBlockView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let eventLocation = convert(event.locationInWindow, from: nil)
+
+        if let tileIndex = noteInfoTileIndex(at: eventLocation),
+           let tileReference = state.tileReference(at: tileIndex),
+           let note = tileReference.note {
+            showNotePopover(note, relativeTo: noteInfoIconRect(for: tileIndex))
+            return
+        }
 
         if event.clickCount == 2, titleRect.contains(eventLocation) {
             requestRename?(state.id)
@@ -142,6 +153,16 @@ final class DeskBlockView: NSView {
         let eventLocation = convert(event.locationInWindow, from: nil)
         let clickedTileIndex = tileIndex(at: eventLocation)
         let clickedTileReference = clickedTileIndex.flatMap { state.tileReference(at: $0) }
+        let editFolderNoteItem = NSMenuItem(
+            title: clickedTileReference?.note == nil ? "Notiz hinzufügen..." : "Notiz bearbeiten...",
+            action: #selector(editFolderNoteFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
+        let removeFolderNoteItem = NSMenuItem(
+            title: "Notiz entfernen",
+            action: #selector(removeFolderNoteFromContextMenu(_:)),
+            keyEquivalent: ""
+        )
         let renameItem = NSMenuItem(
             title: "Rename Block...",
             action: #selector(renameFromContextMenu(_:)),
@@ -205,6 +226,10 @@ final class DeskBlockView: NSView {
         openFolderItem.representedObject = clickedTileIndex
         removeFolderReferenceItem.target = self
         removeFolderReferenceItem.representedObject = clickedTileIndex
+        editFolderNoteItem.target = self
+        editFolderNoteItem.representedObject = clickedTileIndex
+        removeFolderNoteItem.target = self
+        removeFolderNoteItem.representedObject = clickedTileIndex
         addTileItem.target = self
         addTileItem.isEnabled = !state.isLocked
         deleteTileItem.target = self
@@ -221,6 +246,10 @@ final class DeskBlockView: NSView {
             }
             menu.addItem(chooseFolderItem)
             if clickedTileReference != nil {
+                menu.addItem(editFolderNoteItem)
+                if clickedTileReference?.note != nil {
+                    menu.addItem(removeFolderNoteItem)
+                }
                 menu.addItem(removeFolderReferenceItem)
             }
             menu.addItem(.separator())
@@ -322,6 +351,22 @@ final class DeskBlockView: NSView {
         requestRemoveFolderReference?(state.id, tileIndex)
     }
 
+    @objc private func editFolderNoteFromContextMenu(_ sender: NSMenuItem) {
+        guard let tileIndex = sender.representedObject as? Int else {
+            return
+        }
+
+        requestEditFolderNote?(state.id, tileIndex)
+    }
+
+    @objc private func removeFolderNoteFromContextMenu(_ sender: NSMenuItem) {
+        guard let tileIndex = sender.representedObject as? Int else {
+            return
+        }
+
+        requestRemoveFolderNote?(state.id, tileIndex)
+    }
+
     private func drawTileGrid() {
         let originX = PrototypeGeometry.padding
         let originY = tileGridOriginY
@@ -346,6 +391,7 @@ final class DeskBlockView: NSView {
             }
 
             drawTile(
+                tileIndex: tileIndex,
                 row: row,
                 column: column,
                 originX: originX,
@@ -365,6 +411,7 @@ final class DeskBlockView: NSView {
     }
 
     private func drawTile(
+        tileIndex: Int,
         row: Int,
         column: Int,
         originX: CGFloat,
@@ -409,6 +456,7 @@ final class DeskBlockView: NSView {
 
         drawFolderPlaceholder(in: tileRect)
         drawTileLabel(label, in: tileRect)
+        drawNoteInfoIconIfNeeded(for: tileIndex, in: tileRect)
     }
 
     private func drawFolderPlaceholder(in tileRect: NSRect) {
@@ -444,6 +492,144 @@ final class DeskBlockView: NSView {
         )
 
         label.draw(in: labelRect, withAttributes: attributes)
+    }
+
+    private func drawNoteInfoIconIfNeeded(for tileIndex: Int, in tileRect: NSRect) {
+        guard state.tileReference(at: tileIndex)?.note != nil else {
+            return
+        }
+
+        let iconRect = noteInfoIconRect(in: tileRect)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: noteInfoIconFont(),
+            .foregroundColor: NSColor(calibratedWhite: 1, alpha: 0.72),
+            .paragraphStyle: paragraphStyle
+        ]
+        "i".draw(in: iconRect.offsetBy(dx: 0, dy: -2), withAttributes: attributes)
+    }
+
+    private func noteInfoIconFont() -> NSFont {
+        NSFont(name: "Snell Roundhand", size: 16)
+            ?? NSFont(name: "Bradley Hand ITC", size: 15)
+            ?? NSFontManager.shared.convert(
+                NSFont.systemFont(ofSize: 13, weight: .regular),
+                toHaveTrait: .italicFontMask
+            )
+    }
+
+    private func noteInfoTileIndex(at point: NSPoint) -> Int? {
+        guard let tileIndex = tileIndex(at: point),
+              state.tileReference(at: tileIndex)?.note != nil
+        else {
+            return nil
+        }
+
+        return noteInfoIconRect(for: tileIndex).contains(point) ? tileIndex : nil
+    }
+
+    private func noteInfoIconRect(for tileIndex: Int) -> NSRect {
+        guard let visibleSlot = visibleSlot(forTileIndex: tileIndex) else {
+            return .zero
+        }
+
+        let row = visibleSlot / state.columns
+        let column = visibleSlot % state.columns
+        let tileRect = NSRect(
+            x: PrototypeGeometry.padding + CGFloat(column) * PrototypeGeometry.tileWidth,
+            y: tileGridOriginY + CGFloat(row) * PrototypeGeometry.tileHeight,
+            width: PrototypeGeometry.tileWidth,
+            height: PrototypeGeometry.tileHeight
+        ).insetBy(dx: 5, dy: 5)
+
+        return noteInfoIconRect(in: tileRect)
+    }
+
+    private func noteInfoIconRect(in tileRect: NSRect) -> NSRect {
+        let iconSize: CGFloat = 16
+        return NSRect(
+            x: tileRect.maxX - iconSize - 7,
+            y: tileRect.minY + 7,
+            width: iconSize,
+            height: iconSize
+        )
+    }
+
+    private func showNotePopover(_ note: String, relativeTo iconRect: NSRect) {
+        notePopover?.close()
+
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 236, height: 1))
+        textView.string = note
+        textView.font = NSFont.systemFont(ofSize: 13)
+        textView.textColor = NSColor(calibratedWhite: 1, alpha: 0.92)
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.textContainerInset = NSSize(width: 0, height: 0)
+        textView.textContainer?.containerSize = NSSize(width: 236, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        if let textContainer = textView.textContainer {
+            textView.layoutManager?.ensureLayout(for: textContainer)
+        }
+
+        let viewController = NSViewController()
+        let usedHeight = textView.textContainer
+            .flatMap { textView.layoutManager?.usedRect(for: $0).height } ?? 48
+        let contentSize = NSSize(
+            width: 260,
+            height: min(max(usedHeight + 24, 72), 220)
+        )
+        let container = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentSize))
+        container.material = .popover
+        container.blendingMode = .behindWindow
+        container.state = .active
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 16
+        container.layer?.masksToBounds = true
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor(calibratedWhite: 1, alpha: 0.58).cgColor
+
+        let colorWash = NSView(frame: container.bounds)
+        colorWash.autoresizingMask = [.width, .height]
+        colorWash.wantsLayer = true
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.frame = colorWash.bounds
+        gradientLayer.colors = [
+            NSColor(calibratedRed: 0.28, green: 0.88, blue: 1, alpha: 0.24).cgColor,
+            NSColor(calibratedWhite: 1, alpha: 0.08).cgColor,
+            NSColor(calibratedRed: 1, green: 0.42, blue: 0.68, alpha: 0.18).cgColor
+        ]
+        gradientLayer.locations = [0, 0.48, 1]
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        colorWash.layer?.addSublayer(gradientLayer)
+        container.addSubview(colorWash)
+
+        let scrollView = NSScrollView(frame: NSRect(
+            x: 14,
+            y: 14,
+            width: contentSize.width - 28,
+            height: contentSize.height - 28
+        ))
+        textView.frame = NSRect(
+            origin: .zero,
+            size: NSSize(width: scrollView.contentSize.width, height: max(usedHeight, scrollView.contentSize.height))
+        )
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = usedHeight > scrollView.contentSize.height
+        scrollView.documentView = textView
+        container.addSubview(scrollView)
+        viewController.view = container
+
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = contentSize
+        popover.contentViewController = viewController
+        popover.show(relativeTo: iconRect, of: self, preferredEdge: .minY)
+        notePopover = popover
     }
 
     private func tileIndex(at point: NSPoint) -> Int? {
@@ -548,6 +734,16 @@ final class DeskBlockView: NSView {
         }
 
         return tileIndex
+    }
+
+    private func visibleSlot(forTileIndex targetTileIndex: Int) -> Int? {
+        let visibleSlot = targetTileIndex - tileScrollOffset
+
+        guard visibleSlot >= 0, visibleSlot < visibleSlotCount else {
+            return nil
+        }
+
+        return tileIndex(forVisibleSlot: visibleSlot) == targetTileIndex ? visibleSlot : nil
     }
 
     private func scrollTiles(by delta: Int, alignToRows: Bool) {

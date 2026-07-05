@@ -443,6 +443,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockView.requestRemoveFolderReference = { [weak self] blockID, tileIndex in
             self?.removeFolderReference(from: blockID, at: tileIndex)
         }
+        blockView.requestEditFolderNote = { [weak self] blockID, tileIndex in
+            self?.showFolderNoteDialog(for: blockID, tileIndex: tileIndex)
+        }
+        blockView.requestRemoveFolderNote = { [weak self] blockID, tileIndex in
+            self?.updateFolderNote(nil, in: blockID, at: tileIndex)
+        }
 
         window.identifier = NSUserInterfaceItemIdentifier(block.id.rawValue)
         window.title = block.title
@@ -913,6 +919,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard updatedBlock != currentBlock else {
             NSSound.beep()
+            return
+        }
+
+        update(block: updatedBlock)
+    }
+
+    private func showFolderNoteDialog(for blockID: DeskBlockID, tileIndex: Int) {
+        guard
+            let block = state.block(id: blockID),
+            let tileReference = block.tileReference(at: tileIndex),
+            let window = windowsByBlockID[blockID]
+        else {
+            return
+        }
+
+        let alert = NSAlert()
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 320, height: 140))
+        let textView = NSTextView(frame: scrollView.bounds)
+
+        alert.messageText = tileReference.note == nil ? "Notiz hinzufügen" : "Notiz bearbeiten"
+        alert.informativeText = "Beschreibung für \"\(tileReference.displayName)\"."
+        alert.addButton(withTitle: "Speichern")
+        alert.addButton(withTitle: "Abbrechen")
+
+        textView.string = tileReference.note ?? ""
+        textView.font = NSFont.systemFont(ofSize: 13)
+        textView.isRichText = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.minSize = NSSize(width: 0, height: scrollView.contentSize.height)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.textContainer?.containerSize = NSSize(
+            width: scrollView.contentSize.width,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        textView.textContainer?.widthTracksTextView = true
+
+        scrollView.borderType = .bezelBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.documentView = textView
+        alert.accessoryView = scrollView
+        window.makeFirstResponder(textView)
+
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn else {
+                return
+            }
+
+            self?.updateFolderNote(textView.string, in: blockID, at: tileIndex)
+        }
+    }
+
+    private func updateFolderNote(_ note: String?, in blockID: DeskBlockID, at tileIndex: Int) {
+        guard let currentBlock = state.block(id: blockID) else {
+            return
+        }
+
+        let updatedBlock = currentBlock.updatingTileReferenceNote(note, at: tileIndex)
+
+        guard updatedBlock != currentBlock else {
             return
         }
 

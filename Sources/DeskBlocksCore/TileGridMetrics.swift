@@ -86,12 +86,20 @@ public struct TileReference: Codable, Equatable, Sendable {
     public let tileIndex: Int
     public let displayName: String
     public let folderReference: FolderReference
+    public let note: String?
 
-    public init(id: String, tileIndex: Int, displayName: String, folderReference: FolderReference) {
+    public init(
+        id: String,
+        tileIndex: Int,
+        displayName: String,
+        folderReference: FolderReference,
+        note: String? = nil
+    ) {
         self.id = id
         self.tileIndex = tileIndex
         self.displayName = displayName
         self.folderReference = folderReference
+        self.note = note
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -99,6 +107,7 @@ public struct TileReference: Codable, Equatable, Sendable {
         case tileIndex
         case displayName
         case folderReference
+        case note
     }
 
     public init(from decoder: Decoder) throws {
@@ -117,6 +126,7 @@ public struct TileReference: Codable, Equatable, Sendable {
                 lastKnownPath: ""
             )
         }
+        note = try container.decodeIfPresent(String.self, forKey: .note)
     }
 
     public func placed(at newTileIndex: Int) -> TileReference {
@@ -124,7 +134,22 @@ public struct TileReference: Codable, Equatable, Sendable {
             id: id,
             tileIndex: newTileIndex,
             displayName: displayName,
-            folderReference: folderReference
+            folderReference: folderReference,
+            note: note
+        )
+    }
+
+    public func withNote(_ proposedNote: String?) -> TileReference {
+        let normalizedNote = proposedNote?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+
+        return TileReference(
+            id: id,
+            tileIndex: tileIndex,
+            displayName: displayName,
+            folderReference: folderReference,
+            note: normalizedNote
         )
     }
 }
@@ -332,6 +357,14 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
         )
     }
 
+    public func updatingTileReferenceNote(_ note: String?, at tileIndex: Int) -> DeskBlockState {
+        guard let reference = tileReference(at: tileIndex) else {
+            return self
+        }
+
+        return placingTileReference(reference.withNote(note), at: tileIndex)
+    }
+
     private func withTileCount(_ newTileCount: Int, metrics: TileGridMetrics) -> DeskBlockState {
         let safeTileCount = max(1, newTileCount)
         let currentCapacity = max(1, columns * rows)
@@ -459,6 +492,12 @@ public struct DeskBlockState: Codable, Equatable, Sendable {
             .sorted { first, second in
                 first.tileIndex < second.tileIndex
             }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 

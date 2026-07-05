@@ -48,6 +48,7 @@ Use this file after `AGENTS.md` to find the smallest useful context for a task. 
 | `docs/decisions/ADR-004-local-unsigned-app-bundle.md` | Local `.app` packaging. |
 | `docs/decisions/ADR-005-persist-block-title-colors.md` | Title color persistence. |
 | `docs/decisions/ADR-006-persist-block-display-and-lock-options.md` | Empty tile visibility and block lock persistence. |
+| `docs/decisions/ADR-007-persist-folder-reference-notes.md` | Folder reference note persistence. |
 | `docs/token-usage-guidelines.md` | Context, handoff, and verification-budget rules. |
 | `tasks/ui-regression-checklist.md` | Manual AppKit/UI regression checks. |
 

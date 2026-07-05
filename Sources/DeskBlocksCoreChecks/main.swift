@@ -331,6 +331,46 @@ private func testDeskBlockStatePlacesFolderReferenceAtTileIndex() {
     check(updated.tileReferences.count == 1, "expected one stored tile reference")
 }
 
+private func testDeskBlockStateUpdatesFolderReferenceNote() {
+    let state = DeskBlockState.prototypeDefault().placingTileReference(
+        TileReference(
+            id: "tile-projects",
+            tileIndex: 0,
+            displayName: "Projects",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-projects",
+                lastKnownPath: "/Users/example/Desktop/Projects"
+            )
+        ),
+        at: 2
+    )
+
+    let updated = state.updatingTileReferenceNote("  Review invoices weekly  ", at: 2)
+
+    check(updated.tileReference(at: 2)?.note == "Review invoices weekly", "expected note to be trimmed and saved")
+    check(updated.tileReference(at: 2)?.displayName == "Projects", "expected note edit to preserve display name")
+}
+
+private func testDeskBlockStateClearsFolderReferenceNoteForEmptyText() {
+    let state = DeskBlockState.prototypeDefault().placingTileReference(
+        TileReference(
+            id: "tile-projects",
+            tileIndex: 0,
+            displayName: "Projects",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-projects",
+                lastKnownPath: "/Users/example/Desktop/Projects"
+            ),
+            note: "Keep an eye on active work"
+        ),
+        at: 2
+    )
+
+    let updated = state.updatingTileReferenceNote("   ", at: 2)
+
+    check(updated.tileReference(at: 2)?.note == nil, "expected empty note text to clear the note")
+}
+
 private func testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount() {
     let state = DeskBlockState.prototypeDefault()
     let reference = TileReference(
@@ -346,6 +386,38 @@ private func testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount() {
     let updated = state.placingTileReference(reference, at: state.tileCount)
 
     check(updated == state, "expected out-of-range tile placement to leave state unchanged")
+}
+
+private func testDeskBlockStateReplacesFolderReferenceWithoutKeepingOldNote() {
+    let state = DeskBlockState.prototypeDefault().placingTileReference(
+        TileReference(
+            id: "tile-projects",
+            tileIndex: 0,
+            displayName: "Projects",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-projects",
+                lastKnownPath: "/Users/example/Desktop/Projects"
+            ),
+            note: "Old folder note"
+        ),
+        at: 2
+    )
+
+    let updated = state.placingTileReference(
+        TileReference(
+            id: "tile-archive",
+            tileIndex: 0,
+            displayName: "Archive",
+            folderReference: FolderReference(
+                bookmarkDataBase64: "bookmark-archive",
+                lastKnownPath: "/Users/example/Desktop/Archive"
+            )
+        ),
+        at: 2
+    )
+
+    check(updated.tileReference(at: 2)?.displayName == "Archive", "expected replacement folder reference")
+    check(updated.tileReference(at: 2)?.note == nil, "expected replacement reference not to keep old note")
 }
 
 private func testDeskBlockStateKeepsOnlyOneReferencePerTileIndex() {
@@ -862,12 +934,54 @@ private func testTileReferenceDecodesLegacyStringFolderReference() {
 
         check(decoded.id == "legacy-tile", "expected legacy tile ID")
         check(decoded.tileIndex == 0, "expected legacy tile index to default to zero")
+        check(decoded.note == nil, "expected legacy tile note to default to nil")
         check(decoded.folderReference.kind == .bookmark, "expected legacy reference to become a bookmark reference")
         check(decoded.folderReference.bookmarkDataBase64 == "legacy-bookmark", "expected legacy string to be preserved")
     } catch {
         fputs("FAIL: expected legacy tile reference to decode, got \(error)\n", stderr)
         Foundation.exit(1)
     }
+}
+
+private func testTileReferenceNoteRoundTripsThroughJSON() {
+    let reference = TileReference(
+        id: "noted-tile",
+        tileIndex: 3,
+        displayName: "Noted",
+        folderReference: FolderReference(
+            bookmarkDataBase64: "noted-bookmark",
+            lastKnownPath: "/Users/example/Desktop/Noted"
+        ),
+        note: "Important folder"
+    )
+
+    do {
+        let data = try JSONEncoder().encode(reference)
+        let decoded = try JSONDecoder().decode(TileReference.self, from: data)
+
+        check(decoded == reference, "expected noted tile reference to round-trip through JSON")
+    } catch {
+        fputs("FAIL: expected noted tile reference JSON round-trip, got \(error)\n", stderr)
+        Foundation.exit(1)
+    }
+}
+
+private func testTileReferencePlacedPreservesNote() {
+    let reference = TileReference(
+        id: "noted-tile",
+        tileIndex: 1,
+        displayName: "Noted",
+        folderReference: FolderReference(
+            bookmarkDataBase64: "noted-bookmark",
+            lastKnownPath: "/Users/example/Desktop/Noted"
+        ),
+        note: "Important folder"
+    )
+
+    let placed = reference.placed(at: 4)
+
+    check(placed.tileIndex == 4, "expected placed reference to update tile index")
+    check(placed.note == reference.note, "expected placed reference to preserve note")
 }
 
 testPrototypeMetricsProduceInitialFourByThreeBlockSize()
@@ -891,7 +1005,10 @@ testDeskBlockStateAddsTileAndExpandsOnlyWhenNeeded()
 testDeskBlockStateRemovesTileWithoutDeletingLastTile()
 testDeskBlockStateSnapsProposedSizeAndPreservesReferences()
 testDeskBlockStatePlacesFolderReferenceAtTileIndex()
+testDeskBlockStateUpdatesFolderReferenceNote()
+testDeskBlockStateClearsFolderReferenceNoteForEmptyText()
 testDeskBlockStateRejectsFolderReferenceOutsideVisibleTileCount()
+testDeskBlockStateReplacesFolderReferenceWithoutKeepingOldNote()
 testDeskBlockStateKeepsOnlyOneReferencePerTileIndex()
 testDeskBlockStateDropsReferencesWhenTileIsRemoved()
 testDeskBlockStateRemovesFolderReferenceWithoutRemovingTile()
@@ -913,5 +1030,7 @@ testDeskBlockStateUpdatesTitleColorWithoutChangingGeometryOrReferences()
 testDeskBlockStateTogglesEmptyTileVisibilityWithoutChangingGeometryOrReferences()
 testDeskBlockStateTogglesLockWithoutChangingGeometryOrReferences()
 testTileReferenceDecodesLegacyStringFolderReference()
+testTileReferenceNoteRoundTripsThroughJSON()
+testTileReferencePlacedPreservesNote()
 
 print("DeskBlocksCoreChecks passed")
