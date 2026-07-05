@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var titleColorEditingBlockID: DeskBlockID?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        applyApplicationIcon()
         installMainMenu()
         configureTitleColorPanel()
 
@@ -275,6 +276,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         !state.blocks.isEmpty
+    }
+
+    private func applyApplicationIcon() {
+        guard
+            let iconURL = Bundle.main.url(forResource: "DeskBlocks", withExtension: "icns"),
+            let iconImage = NSImage(contentsOf: iconURL)
+        else {
+            return
+        }
+
+        NSApplication.shared.applicationIconImage = iconImage
     }
 
     private func commandLineValue(after flag: String) -> String? {

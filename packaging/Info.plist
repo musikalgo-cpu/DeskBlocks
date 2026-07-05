@@ -10,6 +10,8 @@
 	<string>DeskBlocksPrototype</string>
 	<key>CFBundleIdentifier</key>
 	<string>local.deskblocks.prototype</string>
+	<key>CFBundleIconFile</key>
+	<string>DeskBlocks</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
