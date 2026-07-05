@@ -307,6 +307,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let fileMenu = NSMenu(title: "File")
         let editMenuItem = NSMenuItem()
         let editMenu = NSMenu(title: "Edit")
+        let cutItem = NSMenuItem(
+            title: "Cut",
+            action: #selector(NSText.cut(_:)),
+            keyEquivalent: "x"
+        )
+        let copyItem = NSMenuItem(
+            title: "Copy",
+            action: #selector(NSText.copy(_:)),
+            keyEquivalent: "c"
+        )
+        let pasteItem = NSMenuItem(
+            title: "Paste",
+            action: #selector(NSText.paste(_:)),
+            keyEquivalent: "v"
+        )
+        let selectAllItem = NSMenuItem(
+            title: "Select All",
+            action: #selector(NSText.selectAll(_:)),
+            keyEquivalent: "a"
+        )
         let newBlockItem = NSMenuItem(
             title: "New Block...",
             action: #selector(createNewBlock(_:)),
@@ -368,6 +388,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         addTileItem.target = self
         deleteTileItem.target = self
         removeBlockItem.target = self
+        editMenu.addItem(cutItem)
+        editMenu.addItem(copyItem)
+        editMenu.addItem(pasteItem)
+        editMenu.addItem(selectAllItem)
+        editMenu.addItem(.separator())
         editMenu.addItem(renameBlockItem)
         editMenu.addItem(titleColorItem)
         editMenu.addItem(hideEmptyTilesItem)
@@ -962,7 +987,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         scrollView.hasVerticalScroller = true
         scrollView.documentView = textView
         alert.accessoryView = scrollView
-        window.makeFirstResponder(textView)
 
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn else {
@@ -970,6 +994,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
 
             self?.updateFolderNote(textView.string, in: blockID, at: tileIndex)
+        }
+        DispatchQueue.main.async {
+            alert.window.makeFirstResponder(textView)
         }
     }
 

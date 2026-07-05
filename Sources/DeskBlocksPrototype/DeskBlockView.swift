@@ -1,7 +1,10 @@
 import AppKit
 import DeskBlocksCore
-import QuartzCore
 import UniformTypeIdentifiers
+
+private final class FlippedNotePopoverView: NSView {
+    override var isFlipped: Bool { true }
+}
 
 final class DeskBlockView: NSView {
     var state: DeskBlockState {
@@ -511,12 +514,10 @@ final class DeskBlockView: NSView {
     }
 
     private func noteInfoIconFont() -> NSFont {
-        NSFont(name: "Snell Roundhand", size: 16)
-            ?? NSFont(name: "Bradley Hand ITC", size: 15)
-            ?? NSFontManager.shared.convert(
-                NSFont.systemFont(ofSize: 13, weight: .regular),
-                toHaveTrait: .italicFontMask
-            )
+        NSFontManager.shared.convert(
+            NSFont.systemFont(ofSize: 13, weight: .regular),
+            toHaveTrait: .italicFontMask
+        )
     }
 
     private func noteInfoTileIndex(at point: NSPoint) -> Int? {
@@ -559,7 +560,15 @@ final class DeskBlockView: NSView {
     private func showNotePopover(_ note: String, relativeTo iconRect: NSRect) {
         notePopover?.close()
 
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 236, height: 1))
+        let edgeInset: CGFloat = 22
+        let contentSize = notePopoverContentSize(for: note)
+        let textFrame = NSRect(
+            x: edgeInset,
+            y: edgeInset,
+            width: contentSize.width - edgeInset * 2,
+            height: contentSize.height - edgeInset * 2
+        )
+        let textView = NSTextView(frame: textFrame)
         textView.string = note
         textView.font = NSFont.systemFont(ofSize: 13)
         textView.textColor = NSColor(calibratedWhite: 1, alpha: 0.92)
@@ -567,61 +576,20 @@ final class DeskBlockView: NSView {
         textView.drawsBackground = false
         textView.isEditable = false
         textView.isSelectable = true
-        textView.textContainerInset = NSSize(width: 0, height: 0)
-        textView.textContainer?.containerSize = NSSize(width: 236, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainerInset = .zero
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainer?.containerSize = NSSize(width: textFrame.width, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = true
-        if let textContainer = textView.textContainer {
-            textView.layoutManager?.ensureLayout(for: textContainer)
-        }
 
         let viewController = NSViewController()
-        let usedHeight = textView.textContainer
-            .flatMap { textView.layoutManager?.usedRect(for: $0).height } ?? 48
-        let contentSize = NSSize(
-            width: 260,
-            height: min(max(usedHeight + 24, 72), 220)
-        )
-        let container = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentSize))
-        container.material = .popover
-        container.blendingMode = .behindWindow
-        container.state = .active
+        let container = FlippedNotePopoverView(frame: NSRect(origin: .zero, size: contentSize))
         container.wantsLayer = true
         container.layer?.cornerRadius = 16
         container.layer?.masksToBounds = true
         container.layer?.borderWidth = 1
-        container.layer?.borderColor = NSColor(calibratedWhite: 1, alpha: 0.58).cgColor
-
-        let colorWash = NSView(frame: container.bounds)
-        colorWash.autoresizingMask = [.width, .height]
-        colorWash.wantsLayer = true
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.frame = colorWash.bounds
-        gradientLayer.colors = [
-            NSColor(calibratedRed: 0.28, green: 0.88, blue: 1, alpha: 0.24).cgColor,
-            NSColor(calibratedWhite: 1, alpha: 0.08).cgColor,
-            NSColor(calibratedRed: 1, green: 0.42, blue: 0.68, alpha: 0.18).cgColor
-        ]
-        gradientLayer.locations = [0, 0.48, 1]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
-        colorWash.layer?.addSublayer(gradientLayer)
-        container.addSubview(colorWash)
-
-        let scrollView = NSScrollView(frame: NSRect(
-            x: 14,
-            y: 14,
-            width: contentSize.width - 28,
-            height: contentSize.height - 28
-        ))
-        textView.frame = NSRect(
-            origin: .zero,
-            size: NSSize(width: scrollView.contentSize.width, height: max(usedHeight, scrollView.contentSize.height))
-        )
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = usedHeight > scrollView.contentSize.height
-        scrollView.documentView = textView
-        container.addSubview(scrollView)
+        container.layer?.borderColor = NSColor(calibratedRed: 0.18, green: 0.27, blue: 0.34, alpha: 0.85).cgColor
+        container.layer?.backgroundColor = NSColor.clear.cgColor
+        container.addSubview(textView)
         viewController.view = container
 
         let popover = NSPopover()
@@ -630,6 +598,48 @@ final class DeskBlockView: NSView {
         popover.contentViewController = viewController
         popover.show(relativeTo: iconRect, of: self, preferredEdge: .minY)
         notePopover = popover
+    }
+
+    private func notePopoverContentSize(for note: String) -> NSSize {
+        let edgeInset: CGFloat = 22
+        let minTextWidth: CGFloat = 120
+        let maxContentWidth = min(max((window?.screen ?? NSScreen.main)?.visibleFrame.width ?? 720, 360) * 0.65, 720)
+        let maxTextWidth = maxContentWidth - edgeInset * 2
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13)
+        ]
+
+        let widths = stride(from: minTextWidth, through: maxTextWidth, by: 20)
+        let candidates = widths.map { textWidth -> NSSize in
+            let textHeight = noteTextHeight(for: note, width: textWidth, attributes: attributes)
+            let contentWidth = ceil(textWidth + edgeInset * 2)
+            let contentHeight = ceil(textHeight + edgeInset * 2)
+            return NSSize(
+                width: contentWidth,
+                height: contentHeight
+            )
+        }
+
+        return candidates.first { size in
+            let ratio = size.width / size.height
+            return ratio >= 1 && ratio <= 2
+        } ?? candidates.last ?? NSSize(width: 260, height: 120)
+    }
+
+    private func noteTextHeight(
+        for note: String,
+        width: CGFloat,
+        attributes: [NSAttributedString.Key: Any]? = nil
+    ) -> CGFloat {
+        let resolvedAttributes = attributes ?? [
+            .font: NSFont.systemFont(ofSize: 13)
+        ]
+
+        return ceil((note as NSString).boundingRect(
+            with: NSSize(width: width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: resolvedAttributes
+        ).height)
     }
 
     private func tileIndex(at point: NSPoint) -> Int? {
