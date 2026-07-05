@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var state = DeskBlocksState.prototypeDefault()
     private var windowsByBlockID: [DeskBlockID: NSWindow] = [:]
     private var blockViewsByBlockID: [DeskBlockID: DeskBlockView] = [:]
+    private var blockHoverStatesByBlockID: [DeskBlockID: Bool] = [:]
     private var blockIDsApplyingSnappedFrame: Set<DeskBlockID> = []
     private let titleColorPanel = NSColorPanel.shared
     private var titleColorEditingBlockID: DeskBlockID?
@@ -274,6 +275,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         updateStateFromAllWindows(save: true)
     }
 
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        updateBlockCloseButton(for: window)
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        updateBlockCloseButton(for: window)
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         !state.blocks.isEmpty
     }
@@ -453,6 +470,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         blockView.requestRemove = { [weak self] blockID in
             self?.showRemoveConfirmation(for: blockID)
         }
+        blockView.hoverChanged = { [weak self, weak window] isHovered in
+            guard let self, let window else {
+                return
+            }
+
+            self.blockHoverStatesByBlockID[block.id] = isHovered
+            self.updateBlockCloseButton(for: window)
+        }
         blockView.requestEditTitleColor = { [weak self] blockID in
             self?.showTitleColorPanel(for: blockID)
         }
@@ -505,15 +530,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.collectionBehavior = OverlayWindowConfiguration.collectionBehavior
         window.minSize = minimumFrameSize(for: block, in: window)
         window.delegate = self
+        windowsByBlockID[block.id] = window
+        blockViewsByBlockID[block.id] = blockView
+        blockHoverStatesByBlockID[block.id] = false
         window.contentView = blockView
+        updateBlockCloseButton(for: window)
         window.standardWindowButton(.zoomButton)?.isEnabled = false
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         applyWindowInteraction(for: block, to: window)
         window.makeKeyAndOrderFront(nil)
-
-        windowsByBlockID[block.id] = window
-        blockViewsByBlockID[block.id] = blockView
     }
 
     private func minimumFrameSize(for block: DeskBlockState, in window: NSWindow) -> NSSize {
@@ -1152,6 +1178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             titleColorEditingBlockID = nil
         }
         blockViewsByBlockID.removeValue(forKey: blockID)
+        blockHoverStatesByBlockID.removeValue(forKey: blockID)
         windowsByBlockID.removeValue(forKey: blockID)
         window.delegate = nil
         window.close()
@@ -1253,6 +1280,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func applyWindowInteraction(for block: DeskBlockState, to window: NSWindow) {
+        window.styleMask.insert(.closable)
+
         if block.isLocked {
             window.styleMask.remove(.resizable)
         } else {
@@ -1261,6 +1290,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         window.isMovableByWindowBackground = !block.isLocked
         window.minSize = minimumFrameSize(for: block, in: window)
+        updateBlockCloseButton(for: window)
+    }
+
+    private func updateBlockCloseButton(for window: NSWindow) {
+        let isVisible = blockID(for: window).map { blockID in
+            window.isKeyWindow && blockHoverStatesByBlockID[blockID] == true
+        } ?? false
+
+        guard let closeButton = window.standardWindowButton(.closeButton) else {
+            return
+        }
+
+        closeButton.isHidden = !isVisible
+        closeButton.isEnabled = isVisible
     }
 
     private func isLocked(window: NSWindow) -> Bool {

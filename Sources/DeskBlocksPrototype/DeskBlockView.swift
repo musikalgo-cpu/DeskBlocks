@@ -41,9 +41,20 @@ final class DeskBlockView: NSView, NSDraggingSource {
     var requestEditFolderNote: ((DeskBlockID, Int) -> Void)?
     var requestRemoveFolderNote: ((DeskBlockID, Int) -> Void)?
     var requestMoveFolderReference: ((DeskBlockID, Int, Int) -> Void)?
+    var hoverChanged: ((Bool) -> Void)?
 
     private var notePopover: NSPopover?
     private var pendingTileDrag: PendingTileDrag?
+    private var blockTrackingArea: NSTrackingArea?
+    private var isMouseInsideBlock = false {
+        didSet {
+            guard isMouseInsideBlock != oldValue else {
+                return
+            }
+
+            hoverChanged?(isMouseInsideBlock)
+        }
+    }
     private var magneticTargetTileIndex: Int? {
         didSet {
             if magneticTargetTileIndex != oldValue {
@@ -92,6 +103,37 @@ final class DeskBlockView: NSView, NSDraggingSource {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateHoverStateFromCurrentMouseLocation()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let blockTrackingArea {
+            removeTrackingArea(blockTrackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        blockTrackingArea = trackingArea
+        updateHoverStateFromCurrentMouseLocation()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isMouseInsideBlock = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isMouseInsideBlock = false
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -837,6 +879,16 @@ final class DeskBlockView: NSView, NSDraggingSource {
         }
 
         return !visibleTileGridRect.contains(point)
+    }
+
+    private func updateHoverStateFromCurrentMouseLocation() {
+        guard let window else {
+            isMouseInsideBlock = false
+            return
+        }
+
+        let mouseLocation = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        isMouseInsideBlock = bounds.contains(mouseLocation)
     }
 
     private var visibleTileGridRect: NSRect {

@@ -124,11 +124,11 @@ MVP UX decisions:
 - Overflow indicators get dedicated vertical breathing room above and below the tile grid rather than overlapping tile content.
 - A block must not resize beyond the visible screen bounds from its current screen position.
 - A block can hide empty tile placeholders while preserving the underlying tile slots and folder placement indexes.
-- A block can be locked to prevent accidental move and resize operations. Locking does not prevent opening, replacing, or removing folder references, but tile add/delete is disabled while locked because it can change required block size.
+- A block can be locked to prevent accidental move and resize operations. Locking does not prevent removing the block or opening, replacing, or removing folder references, but tile add/delete is disabled while locked because it can change required block size.
 - A folder reference can have a short plain-text note added from its tile context menu. If present, the tile shows a subtle clickable `i` indicator near the upper-right edge; clicking it opens a read-only popover near the indicator.
 - Title editing should use a minimal native interaction such as double-clicking the title or a context menu action.
 - Users can add or delete tile slots in a block; deleting tiles must never reduce a block below one tile.
-- Block removal should use a context menu or a subtle hover/selection control.
+- Block removal should use a context menu or a subtle native macOS close control. The native block close button must be hidden and non-clickable while the block is not selected or while the pointer is outside the selected block, and visible/clickable only while the pointer hovers over the selected block.
 
 ## MVP Scope
 
